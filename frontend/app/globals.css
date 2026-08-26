@@ -1,0 +1,35 @@
+body {
+  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  margin: 0;
+  padding: 2rem;
+  max-width: 640px;
+  margin-inline: auto;
+  color: #1a1a1a;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+section {
+  margin-bottom: 2rem;
+  padding: 1rem;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+}
+
+button {
+  cursor: pointer;
+  padding: 0.5rem 1rem;
+  border-radius: 6px;
+  border: 1px solid #333;
+  background: white;
+}
+
+button:hover {
+  background: #f0f0f0;
+}
+
+.error {
+  color: #b00020;
+}

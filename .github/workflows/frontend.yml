@@ -1,0 +1,31 @@
+name: Frontend CI
+
+# Selve deploy håndteres av Vercel sin GitHub-integrasjon (automatisk på push til main).
+# Denne workflowen validerer bare at appen bygger på PR/push, som en enkel sjekk før Vercel tar over.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend.yml"
+  pull_request:
+    paths:
+      - "frontend/**"
+
+defaults:
+  run:
+    working-directory: frontend
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install
+      - run: npm run build

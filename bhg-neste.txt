@@ -1,0 +1,6 @@
+Før du deployer, sett opp:
+
+1. Google Cloud Console: OAuth-klient + redirect URI
+2. GitHub secret  FLY_API_TOKEN 
+3. Fly.io:  fly volumes create barnehage_data , sett secrets ( GOOGLE_CLIENT_ID  osv.)
+4. Vercel: koble repo, sett  NEXT_PUBLIC_API_URL 

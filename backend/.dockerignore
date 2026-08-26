@@ -1,0 +1,13 @@
+.git
+.github
+.gradle
+build
+out
+data
+*.db
+kotlinc
+kotlinc.zip
+cs
+*.log
+*.txt
+.idea

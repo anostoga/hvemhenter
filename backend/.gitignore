@@ -1,0 +1,13 @@
+.gradle/
+build/
+data/
+*.db
+.kotlin/
+out/
+kotlinc/
+kotlinc.zip
+cs
+classpath_main.txt
+cp_kotlinc.txt
+fetch_main.log
+.env
