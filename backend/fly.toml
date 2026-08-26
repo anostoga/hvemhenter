@@ -1,5 +1,7 @@
-# Fly.io-konfigurasjon for backend. Billigste oppsett: delt CPU, minimalt minne,
-# ett persistent volum for SQLite-filen (tokens + tildelingshistorikk).
+# Fly.io-konfigurasjon for backend. Billigste oppsett: delt CPU, minimalt minne.
+# Postgres-tilkobling (Supabase) settes som secret, ikke i denne filen:
+#   fly secrets set DATABASE_URL=... DATABASE_PASSWORD=... TOKEN_ENCRYPTION_KEY=... \
+#     STATE_SIGNING_SECRET=... SESSION_SIGNING_SECRET=... FAMILY_CREATION_CODE=...
 app = "barnehage-backend"
 primary_region = "arn" # Stockholm — bytt til nærmeste region ved behov
 
@@ -7,11 +9,7 @@ primary_region = "arn" # Stockholm — bytt til nærmeste region ved behov
 
 [env]
   PORT = "8080"
-  DB_PATH = "/data/barnehage.db"
-
-[[mounts]]
-  source = "barnehage_data"
-  destination = "/data"
+  SESSION_COOKIE_SECURE = "true"
 
 [http_service]
   internal_port = 8080

@@ -2,13 +2,16 @@ package no.pilot.barnehage.google
 
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
+import io.ktor.client.statement.bodyAsText
 import io.ktor.client.request.header
 import io.ktor.client.request.post
 import io.ktor.client.request.get
+import io.ktor.client.request.delete
 import io.ktor.client.request.parameter
 import io.ktor.client.request.setBody
 import io.ktor.http.ContentType
 import io.ktor.http.contentType
+import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.domain.BusyPeriod
 import org.slf4j.LoggerFactory
@@ -82,14 +85,39 @@ class CalendarService(private val httpClient: HttpClient) {
     }
 
     suspend fun insertEvent(accessToken: String, calendarId: String, event: CalendarEventRequest): String {
-        val response: CalendarEventResponse = withRetry("insertEvent") {
+        val httpResponse = withRetry("insertEvent") {
             httpClient.post("https://www.googleapis.com/calendar/v3/calendars/$calendarId/events") {
                 header("Authorization", "Bearer $accessToken")
                 contentType(ContentType.Application.Json)
                 setBody(event)
-            }.body()
+            }
         }
-        return response.id
+        val bodyText = httpResponse.bodyAsText()
+        if (!httpResponse.status.isSuccess()) {
+            // Google returnerte en feil (f.eks. 403/404 -- ugyldig calendarId, mangler
+            // tilgang, token uten skrivetilgang). Uten denne sjekken ville koden prøve å
+            // parse feilteksten som en CalendarEventResponse og feile med en kryptisk
+            // JsonConvertException("Field 'id' is required...") i stedet for reell årsak.
+            logger.warn("insertEvent feilet mot Google Calendar ({}): {}", httpResponse.status, bodyText)
+            throw IllegalStateException("Google Calendar avviste opprettelse av hendelse (${httpResponse.status}): $bodyText")
+        }
+        return kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(CalendarEventResponse.serializer(), bodyText).id
+    }
+
+    /** Sletter en kalenderhendelse — brukt når en tildeling erstattes med en annen
+     * forelder/tidspunkt, slik at den gamle hendelsen ikke blir hengende igjen i
+     * kalenderen uten at noen tildeling peker på den. Feiler stille (logger bare en
+     * advarsel) hvis hendelsen allerede er slettet manuelt i Google Kalender. */
+    suspend fun deleteEvent(accessToken: String, calendarId: String, eventId: String) {
+        try {
+            withRetry("deleteEvent") {
+                httpClient.delete("https://www.googleapis.com/calendar/v3/calendars/$calendarId/events/$eventId") {
+                    header("Authorization", "Bearer $accessToken")
+                }
+            }
+        } catch (e: Exception) {
+            logger.warn("Kunne ikke slette kalenderhendelse $eventId (kanskje allerede slettet manuelt): ${e.message}")
+        }
     }
 
     suspend fun listUpcoming(accessToken: String, calendarId: String, timeMinIso: String, timeMaxIso: String): String {

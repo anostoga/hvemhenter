@@ -30,9 +30,14 @@ class StateSigner(secret: String, private val ttlSeconds: Long = 600) {
         val expectedSignature = Base64.getUrlEncoder().withoutPadding().encodeToString(mac.doFinal(payload.toByteArray(Charsets.UTF_8)))
         if (expectedSignature != signature) return null
 
-        val segments = payload.split(":")
-        if (segments.size != 2) return null
-        val (parentId, expiresAtRaw) = segments
+        // `parentId` selv inneholder kolon (f.eks. "join:kode123" eller
+        // "reconnect:<uuid>"), så vi kan IKKE splitte hele payloaden på ":" —
+        // det ville gitt flere enn 2 segmenter og feilaktig avvist gyldig state.
+        // Del kun på siste ":" (utløpstidspunktet er alltid sist).
+        val lastColon = payload.lastIndexOf(":")
+        if (lastColon == -1) return null
+        val parentId = payload.substring(0, lastColon)
+        val expiresAtRaw = payload.substring(lastColon + 1)
         val expiresAt = expiresAtRaw.toLongOrNull() ?: return null
         if (Instant.now().epochSecond > expiresAt) return null
         return parentId

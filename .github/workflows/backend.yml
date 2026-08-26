@@ -17,12 +17,31 @@ defaults:
 jobs:
   test:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: localdev
+          POSTGRES_DB: barnehage
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: jdbc:postgresql://localhost:5432/barnehage
+      DATABASE_USER: postgres
+      DATABASE_PASSWORD: localdev
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "21"
+      - name: Kjør Flyway-migrasjon
+        run: ./gradlew flywayMigrate --no-daemon
       - name: Kjør tester
         run: ./gradlew test --no-daemon
 

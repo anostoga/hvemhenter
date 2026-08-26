@@ -3,6 +3,8 @@ package no.pilot.barnehage.google
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
+import io.ktor.client.request.get
+import io.ktor.client.request.header
 import io.ktor.http.Parameters
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.Env
@@ -14,6 +16,13 @@ data class GoogleTokenResponse(
     val refresh_token: String? = null,
     val scope: String? = null,
     val token_type: String? = null,
+)
+
+@Serializable
+data class GoogleUserInfo(
+    val sub: String,
+    val email: String,
+    val name: String? = null,
 )
 
 /** Konfigurasjon lest fra miljøvariabler. Ingen hemmeligheter hardkodes. */
@@ -32,6 +41,9 @@ data class GoogleOAuthConfig(
 }
 
 private val CALENDAR_SCOPES = listOf(
+    "openid",
+    "email",
+    "profile",
     "https://www.googleapis.com/auth/calendar.events",
     "https://www.googleapis.com/auth/calendar.readonly",
 )
@@ -79,6 +91,13 @@ class GoogleOAuthClient(
                 append("grant_type", "refresh_token")
             },
         ).body()
+
+    /** Henter stabil identitet (sub) + e-post/navn via Google sitt userinfo-endepunkt,
+     * brukt til å knytte innlogging til en `parents`-rad (google_sub). */
+    suspend fun fetchUserInfo(accessToken: String): GoogleUserInfo =
+        httpClient.get("https://openidconnect.googleapis.com/v1/userinfo") {
+            header("Authorization", "Bearer $accessToken")
+        }.body()
 
     private fun String.encodeUrl(): String =
         java.net.URLEncoder.encode(this, Charsets.UTF_8)

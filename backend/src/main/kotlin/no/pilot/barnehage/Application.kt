@@ -3,10 +3,11 @@ package no.pilot.barnehage
 import io.ktor.server.application.*
 import io.ktor.server.engine.embeddedServer
 import io.ktor.server.netty.Netty
-import no.pilot.barnehage.plugins.configureDatabase
+import no.pilot.barnehage.auth.configureSessionAuth
+import no.pilot.barnehage.plugins.PostgresDatabase
+import no.pilot.barnehage.plugins.configureCORS
 import no.pilot.barnehage.plugins.configureRouting
 import no.pilot.barnehage.plugins.configureSerialization
-import no.pilot.barnehage.plugins.configureCORS
 
 fun main() {
     embeddedServer(Netty, port = Env.get("PORT")?.toIntOrNull() ?: 8080, host = "0.0.0.0") {
@@ -15,9 +16,11 @@ fun main() {
 }
 
 fun Application.module() {
-    val database = configureDatabase()
-    val config = AppConfig.fromEnv()
     configureCORS()
     configureSerialization()
-    configureRouting(database, config)
+
+    val database = PostgresDatabase.connect()
+    configureSessionAuth()
+
+    configureRouting(database)
 }

@@ -34,7 +34,8 @@ class AssignmentService {
             leastAssigned.first()
         } else {
             // Uavgjort i antall: alternér fra hvem som ble tildelt sist (round-robin).
-            val lastAssignedId = relevant.maxByOrNull { it.id ?: -1 }?.parentId
+            // `relevant` er i kronologisk rekkefølge (eldst→nyest), så siste element er sist tildelt.
+            val lastAssignedId = relevant.lastOrNull()?.parentId
             leastAssigned.firstOrNull { it.id != lastAssignedId } ?: leastAssigned.first()
         }
 
@@ -46,11 +47,16 @@ class AssignmentService {
 
         val preferredBusy = isBusy(preferred.id)
         if (!preferredBusy) {
+            val alternative = parents.first { it.id != preferred.id }
+            // Selv om den foretrukne forelderen er ledig og blir foreslått, nevner vi
+            // det hvis den ANDRE forelderen har en kalenderkonflikt — nyttig kontekst,
+            // selv om det ikke endrer selve forslaget.
+            val note = if (isBusy(alternative.id)) " (${alternative.name} har kalenderkonflikt i dette tidsrommet)" else ""
             return Suggestion(
                 date = date,
                 type = type,
                 suggestedParentId = preferred.id,
-                reason = "Rettferdig fordeling (færrest tidligere ${type.name.lowercase()})",
+                reason = "Rettferdig fordeling: ${preferred.name} (færrest tidligere ${type.name.lowercase()})$note",
             )
         }
 
@@ -61,7 +67,7 @@ class AssignmentService {
                 date = date,
                 type = type,
                 suggestedParentId = alternative.id,
-                reason = "Foretrukket forelder har kalenderkonflikt, ${alternative.name} er ledig",
+                reason = "${alternative.name}: foretrukket forelder (${preferred.name}) har kalenderkonflikt, ${alternative.name} er ledig",
             )
         }
 
@@ -70,7 +76,7 @@ class AssignmentService {
             date = date,
             type = type,
             suggestedParentId = preferred.id,
-            reason = "Begge foreldre har mulig kalenderkonflikt — bekreft manuelt",
+            reason = "${preferred.name}: begge foreldre har mulig kalenderkonflikt — bekreft manuelt",
             conflict = true,
         )
     }

@@ -1,0 +1,14 @@
+services:
+  postgres:
+    image: postgres:16
+    container_name: bhg-postgres
+    environment:
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: barnehage
+    ports:
+      - "5432:5432"
+    volumes:
+      - bhg-postgres-data:/var/lib/postgresql/data
+
+volumes:
+  bhg-postgres-data:

@@ -7,7 +7,7 @@ import javax.crypto.spec.GCMParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * Enkel AES-256-GCM-kryptering for OAuth-tokens lagret i SQLite.
+ * Enkel AES-256-GCM-kryptering for OAuth-tokens lagret i Postgres.
  * Nøkkelen kommer fra miljøvariabelen TOKEN_ENCRYPTION_KEY (base64, 32 byte).
  * Genererer en ny tilfeldig IV per kryptering og lagrer den sammen med chifferteksten.
  */

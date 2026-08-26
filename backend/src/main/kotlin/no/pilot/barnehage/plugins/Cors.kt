@@ -24,5 +24,10 @@ fun Application.configureCORS() {
         allowMethod(HttpMethod.Put)
         allowMethod(HttpMethod.Delete)
         allowHeader(HttpHeaders.ContentType)
+        // Påkrevd for at nettleseren skal sende med sesjonscookien på tvers av
+        // origins (frontend på :3000/Vercel, backend på :8080/Fly.io) — uten
+        // denne får /api/*-kall aldri med seg cookien og ser dermed alltid
+        // "uautentisert" ut (401), selv om brukeren faktisk er innlogget.
+        allowCredentials = true
     }
 }

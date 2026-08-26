@@ -3,10 +3,20 @@ val ktorVersion = "2.3.12"
 val exposedVersion = "0.51.0"
 val logbackVersion = "1.5.6"
 
+buildscript {
+    dependencies {
+        // Flyway-gradle-tasks kjører i build-classpath, trenger driver + dialect-modul her også
+        // (ikke bare i app sin `implementation`-classpath).
+        classpath("org.postgresql:postgresql:42.7.4")
+        classpath("org.flywaydb:flyway-database-postgresql:10.15.0")
+    }
+}
+
 plugins {
     kotlin("jvm") version "1.9.24"
     kotlin("plugin.serialization") version "1.9.24"
     id("io.ktor.plugin") version "2.3.12"
+    id("org.flywaydb.flyway") version "10.15.0"
     application
 }
 
@@ -38,12 +48,15 @@ dependencies {
     implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation-jvm:$ktorVersion")
 
-    // Database: Exposed + SQLite (kun for OAuth-tokens og rotasjonskonfig, ingen full DB-tjeneste)
+    // Database: Exposed + Postgres/Flyway. Postgres er eneste database — families,
+    // parents, oauth_tokens og assignments er alle familie-scopet (se V1__init.sql).
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
-    implementation("org.xerial:sqlite-jdbc:3.46.0.0")
+    implementation("org.postgresql:postgresql:42.7.4")
+    implementation("com.zaxxer:HikariCP:5.1.0")
+    implementation("org.flywaydb:flyway-database-postgresql:10.15.0")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
@@ -60,8 +73,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 tasks.test {
     useJUnitPlatform()
     // Dummy testverdier — ikke ekte hemmeligheter. Sikrer at testene kjører
-    // uavhengig av lokalt oppsatte miljøvariabler (se AppConfig.fromEnv()).
-    environment("SHARED_CALENDAR_ID", "test-calendar")
+    // uavhengig av lokalt oppsatte miljøvariabler.
     environment("TOKEN_ENCRYPTION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
     environment("STATE_SIGNING_SECRET", "test-signing-secret")
     environment("GOOGLE_CLIENT_ID", "test-client-id")
@@ -73,4 +85,13 @@ ktor {
     fatJar {
         archiveFileName.set("barnehage-backend.jar")
     }
+}
+
+// Flyway kjøres eksplisitt via `./gradlew flywayMigrate` (lokalt eller i CI før deploy),
+// IKKE automatisk som del av `build`/`test` — unngår at manglende DATABASE_URL feiler bygget.
+flyway {
+    url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage"
+    user = System.getenv("DATABASE_USER") ?: "postgres"
+    password = System.getenv("DATABASE_PASSWORD") ?: "localdev"
+    locations = arrayOf("classpath:db/migration")
 }

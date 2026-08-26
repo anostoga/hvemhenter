@@ -14,7 +14,7 @@ class AssignmentServiceTest {
     @Test
     fun `foreslaar forelder med faerrest tidligere tildelinger`() {
         val history = listOf(
-            Assignment(id = 1, date = "2026-08-20", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
+            Assignment(id = "1", date = "2026-08-20", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
         )
 
         val suggestion = service.suggest(parents, history, "2026-08-21", AssignmentType.DROPOFF)
@@ -26,8 +26,8 @@ class AssignmentServiceTest {
     @Test
     fun `alternerer basert paa sist tildelte ved uavgjort`() {
         val history = listOf(
-            Assignment(id = 1, date = "2026-08-19", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
-            Assignment(id = 2, date = "2026-08-20", type = AssignmentType.DROPOFF, parentId = far.id, source = AssignmentSource.AUTO),
+            Assignment(id = "1", date = "2026-08-19", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
+            Assignment(id = "2", date = "2026-08-20", type = AssignmentType.DROPOFF, parentId = far.id, source = AssignmentSource.AUTO),
         )
 
         val suggestion = service.suggest(parents, history, "2026-08-21", AssignmentType.DROPOFF)

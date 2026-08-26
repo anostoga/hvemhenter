@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { api, Assignment, AssignmentType, Parent, Suggestion } from "@/lib/api";
+import { api, Assignment, AssignmentType, Family, Parent, Suggestion } from "@/lib/api";
 
 function today(): string {
   return new Date().toISOString().slice(0, 10);
@@ -10,6 +10,8 @@ function today(): string {
 export default function DashboardPage() {
   const [parents, setParents] = useState<Parent[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [family, setFamily] = useState<Family | null>(null);
+  const [calendarInput, setCalendarInput] = useState("");
   const [date, setDate] = useState(today());
   const [type, setType] = useState<AssignmentType>("DROPOFF");
   const [suggestion, setSuggestion] = useState<Suggestion | null>(null);
@@ -18,11 +20,29 @@ export default function DashboardPage() {
 
   useEffect(() => {
     api.getParents().then(setParents).catch((e) => setError(String(e)));
+    api
+      .getFamily()
+      .then((f) => {
+        setFamily(f);
+        setCalendarInput(f.sharedCalendarId);
+      })
+      .catch((e) => setError(String(e)));
     refreshHistory();
   }, []);
 
   function refreshHistory() {
     api.getAssignments().then(setAssignments).catch((e) => setError(String(e)));
+  }
+
+  async function saveSharedCalendar(e: React.FormEvent) {
+    e.preventDefault();
+    setError(null);
+    try {
+      const f = await api.updateSharedCalendar(calendarInput);
+      setFamily(f);
+    } catch (e) {
+      setError(String(e));
+    }
   }
 
   async function fetchSuggestion() {
@@ -63,14 +83,38 @@ export default function DashboardPage() {
 
       <section>
         <h2>Koble til Google Kalender</h2>
-        <p>Hver forelder må koble til sin egen kalender én gang for at forslagene skal ta hensyn til ledig tid.</p>
-        {parents.map((p) => (
-          <p key={p.id}>
-            <a href={api.authStartUrl(p.id)}>Koble til kalender for {p.name}</a>
-            {p.googleCalendarId ? " ✅ tilkoblet" : " (ikke tilkoblet ennå)"}
-          </p>
-        ))}
+        <p>
+          <a href={api.authStartUrl()}>Koble til/forny min kalendertilgang</a>
+        </p>
+        <ul>
+          {parents.map((p) => (
+            <li key={p.id}>
+              {p.name}: {p.connected ? "✅ tilkoblet" : "ikke tilkoblet ennå"}
+            </li>
+          ))}
+        </ul>
       </section>
+
+      {family && (
+        <section>
+          <h2>Delt kalender</h2>
+          {!family.sharedCalendarId && (
+            <p role="alert">
+              ⚠️ Ingen delt kalender er satt opp ennå — bekreftede tildelinger opprettes IKKE som
+              kalenderhendelser før du har lagret en kalender-ID her.
+            </p>
+          )}
+          <form onSubmit={saveSharedCalendar}>
+            <label htmlFor="calendarId">Google-kalender-ID for den delte familiekalenderen</label>
+            <input
+              id="calendarId"
+              value={calendarInput}
+              onChange={(e) => setCalendarInput(e.target.value)}
+            />
+            <button type="submit">Lagre</button>
+          </form>
+        </section>
+      )}
 
       <section>
         <h2>Foreslå fordeling</h2>
@@ -112,6 +156,53 @@ export default function DashboardPage() {
           {assignments.slice(0, 20).map((a) => (
             <li key={a.id}>
               {a.date} — {a.type === "DROPOFF" ? "Levering" : "Henting"}: {parentName(a.parentId)} ({a.source === "AUTO" ? "auto" : "manuelt"})
+              {" "}
+              {parents
+                .filter((p) => p.id !== a.parentId)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    disabled={loading}
+                    onClick={async () => {
+                      setError(null);
+                      setLoading(true);
+                      try {
+                        // Sender samme dato/type på nytt — backend gjenkjenner at det
+                        // allerede finnes en tildeling for den kombinasjonen og
+                        // erstatter den (oppdaterer forelder, bytter ev. kalenderhendelse).
+                        await api.assign({ date: a.date, type: a.type, parentId: p.id, source: "MANUAL" });
+                        refreshHistory();
+                      } catch (e) {
+                        setError(String(e));
+                      } finally {
+                        setLoading(false);
+                      }
+                    }}
+                  >
+                    Endre til {p.name}
+                  </button>
+                ))}
+              {" "}
+              {a.id && (
+                <button
+                  disabled={loading}
+                  onClick={async () => {
+                    if (!confirm("Slette denne bekreftede tildelingen (og en ev. kalenderhendelse)?")) return;
+                    setError(null);
+                    setLoading(true);
+                    try {
+                      await api.deleteAssignment(a.id!);
+                      refreshHistory();
+                    } catch (e) {
+                      setError(String(e));
+                    } finally {
+                      setLoading(false);
+                    }
+                  }}
+                >
+                  Slett
+                </button>
+              )}
             </li>
           ))}
         </ul>

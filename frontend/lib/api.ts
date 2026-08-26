@@ -6,11 +6,11 @@ export type AssignmentSource = "AUTO" | "MANUAL";
 export interface Parent {
   id: string;
   name: string;
-  googleCalendarId: string | null;
+  connected: boolean;
 }
 
 export interface Assignment {
-  id: number | null;
+  id: string | null;
   date: string;
   type: AssignmentType;
   parentId: string;
@@ -26,9 +26,20 @@ export interface Suggestion {
   conflict: boolean;
 }
 
+export interface Family {
+  id: string;
+  sharedCalendarId: string;
+}
+
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
 
 async function handle<T>(response: Response): Promise<T> {
+  if (response.status === 401) {
+    // Sesjonen mangler/er utløpt — send brukeren til innlogging/join-siden
+    // i stedet for å vise en kryptisk feilmelding.
+    window.location.href = "/join";
+    throw new Error("ikke innlogget");
+  }
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`API-kall feilet (${response.status}): ${body}`);
@@ -36,20 +47,53 @@ async function handle<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
+// Alle /api/*-kall sender med `credentials: "include"` — sesjonscookien
+// (satt av backend etter innlogging) er det eneste som knytter kallet til
+// riktig familie, se auth/SessionAuth.kt.
 export const api = {
-  authStartUrl: (parentId: string) => `${API_BASE_URL}/auth/google/${parentId}/start`,
+  authStartUrl: () => `${API_BASE_URL}/auth/google/start`,
 
-  getParents: () => fetch(`${API_BASE_URL}/api/parents`).then((r) => handle<Parent[]>(r)),
+  getParents: () => fetch(`${API_BASE_URL}/api/parents`, { credentials: "include" }).then((r) => handle<Parent[]>(r)),
 
-  getAssignments: () => fetch(`${API_BASE_URL}/api/assignments`).then((r) => handle<Assignment[]>(r)),
+  getAssignments: () =>
+    fetch(`${API_BASE_URL}/api/assignments`, { credentials: "include" }).then((r) => handle<Assignment[]>(r)),
 
   getSuggestion: (date: string, type: AssignmentType) =>
-    fetch(`${API_BASE_URL}/api/suggest?date=${date}&type=${type}`).then((r) => handle<Suggestion>(r)),
+    fetch(`${API_BASE_URL}/api/suggest?date=${date}&type=${type}`, { credentials: "include" }).then((r) =>
+      handle<Suggestion>(r),
+    ),
 
   assign: (input: { date: string; type: AssignmentType; parentId: string; source?: AssignmentSource }) =>
     fetch(`${API_BASE_URL}/api/assign`, {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((r) => handle<Assignment>(r)),
+
+  deleteAssignment: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/assignments/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (response.status === 401) {
+      window.location.href = "/join";
+      throw new Error("ikke innlogget");
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+    // 204 No Content — ingen body å parse
+  },
+
+  getFamily: () => fetch(`${API_BASE_URL}/api/family`, { credentials: "include" }).then((r) => handle<Family>(r)),
+
+  updateSharedCalendar: (sharedCalendarId: string) =>
+    fetch(`${API_BASE_URL}/api/family/shared-calendar`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sharedCalendarId }),
+    }).then((r) => handle<Family>(r)),
 };

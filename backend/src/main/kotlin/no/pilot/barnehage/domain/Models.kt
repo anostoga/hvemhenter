@@ -14,13 +14,13 @@ enum class AssignmentSource { AUTO, MANUAL }
 data class Parent(
     val id: String,
     val name: String,
-    /** Forelderens personlige Google-kalender-ID, brukt for ledighetssjekk. Null hvis ikke koblet til ennå. */
-    val googleCalendarId: String? = null,
+    /** Om forelderen har koblet til Google Kalender (dvs. har en gyldig/fornybar token lagret). */
+    val connected: Boolean = false,
 )
 
 @Serializable
 data class Assignment(
-    val id: Long? = null,
+    val id: String? = null,
     /** ISO-8601 dato (yyyy-MM-dd) */
     val date: String,
     val type: AssignmentType,

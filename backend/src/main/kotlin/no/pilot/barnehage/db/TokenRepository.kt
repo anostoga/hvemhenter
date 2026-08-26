@@ -1,61 +1,64 @@
 package no.pilot.barnehage.db
 
 import no.pilot.barnehage.crypto.TokenCipher
+import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.update
+import java.time.Instant
 import java.time.LocalDateTime
+import java.time.ZoneId
+import java.util.UUID
 
 data class StoredToken(
-    val parentId: String,
+    val parentId: UUID,
     val accessToken: String,
     val refreshToken: String,
     val expiresAt: LocalDateTime,
-    val googleCalendarId: String?,
 )
 
-/** Leser/skriver krypterte OAuth-tokens. Tokens er aldri i klartekst i databasen eller i logger. */
-class TokenRepository(private val cipher: TokenCipher) {
+/** Leser/skriver krypterte OAuth-tokens i Postgres (`oauth_tokens`). Tokens er
+ * aldri i klartekst i databasen eller i logger. Scopes naturlig via `parent_id`
+ * (en fremmednøkkel til `parents`, som igjen tilhører én familie). */
+class TokenRepository(private val cipher: TokenCipher, private val database: Database) {
 
-    fun upsert(parentId: String, accessToken: String, refreshToken: String, expiresAt: LocalDateTime, googleCalendarId: String?) = transaction {
+    fun upsert(parentId: UUID, accessToken: String, refreshToken: String, expiresAt: LocalDateTime) = transaction(database) {
         val encryptedAccess = cipher.encrypt(accessToken)
         val encryptedRefresh = cipher.encrypt(refreshToken)
-        val exists = Tokens.selectAll().where { Tokens.parentId eq parentId }.any()
+        val expiresAtInstant = expiresAt.atZone(ZoneId.systemDefault()).toInstant()
+        val exists = OauthTokensTable.selectAll().where { OauthTokensTable.parentId eq parentId }.any()
 
         if (exists) {
-            Tokens.update({ Tokens.parentId eq parentId }) {
+            OauthTokensTable.update({ OauthTokensTable.parentId eq parentId }) {
                 it[accessTokenEnc] = encryptedAccess
                 it[refreshTokenEnc] = encryptedRefresh
-                it[Tokens.expiresAt] = expiresAt
-                if (googleCalendarId != null) it[Tokens.googleCalendarId] = googleCalendarId
+                it[OauthTokensTable.expiresAt] = expiresAtInstant
             }
         } else {
-            Tokens.insert {
-                it[Tokens.parentId] = parentId
+            OauthTokensTable.insert {
+                it[OauthTokensTable.parentId] = parentId
                 it[accessTokenEnc] = encryptedAccess
                 it[refreshTokenEnc] = encryptedRefresh
-                it[Tokens.expiresAt] = expiresAt
-                it[Tokens.googleCalendarId] = googleCalendarId
+                it[OauthTokensTable.expiresAt] = expiresAtInstant
             }
         }
     }
 
-    fun find(parentId: String): StoredToken? = transaction {
-        Tokens.selectAll().where { Tokens.parentId eq parentId }.firstOrNull()?.let { row ->
+    fun find(parentId: UUID): StoredToken? = transaction(database) {
+        OauthTokensTable.selectAll().where { OauthTokensTable.parentId eq parentId }.firstOrNull()?.let { row ->
             StoredToken(
-                parentId = row[Tokens.parentId],
-                accessToken = cipher.decrypt(row[Tokens.accessTokenEnc]),
-                refreshToken = cipher.decrypt(row[Tokens.refreshTokenEnc]),
-                expiresAt = row[Tokens.expiresAt],
-                googleCalendarId = row[Tokens.googleCalendarId],
+                parentId = row[OauthTokensTable.parentId],
+                accessToken = cipher.decrypt(row[OauthTokensTable.accessTokenEnc]),
+                refreshToken = cipher.decrypt(row[OauthTokensTable.refreshTokenEnc]),
+                expiresAt = LocalDateTime.ofInstant(row[OauthTokensTable.expiresAt], ZoneId.systemDefault()),
             )
         }
     }
 
-    fun delete(parentId: String) = transaction {
-        Tokens.deleteWhere { Op.build { Tokens.parentId eq parentId } }
+    fun delete(parentId: UUID) = transaction(database) {
+        OauthTokensTable.deleteWhere { Op.build { OauthTokensTable.parentId eq parentId } }
     }
 }

@@ -14,5 +14,13 @@ object Env {
         ignoreIfMalformed = true
     }
 
-    fun get(key: String): String? = dotenv[key]
+    private val testOverrides = mutableMapOf<String, String>()
+
+    fun get(key: String): String? = testOverrides[key] ?: dotenv[key]
+
+    /** Kun til bruk i tester — lar tester sette miljøvariabler uten å måtte
+     * ha en ekte `.env`-fil eller OS-miljøvariabel. */
+    fun overrideForTests(key: String, value: String) {
+        testOverrides[key] = value
+    }
 }
