@@ -236,13 +236,6 @@ private suspend fun fetchBusyPeriods(
     val accessToken = parents.firstNotNullOfOrNull { accessTokenProvider.getValidAccessToken(UUID.fromString(it.id)) } ?: return emptyMap()
     val events = calendarService.listEvents(accessToken, sharedCalendarId, windowStartIso, windowEndIso)
 
-    logger.info(
-        "Hentet {} hendelser fra delt kalender for {}: {}",
-        events.size,
-        date,
-        events.joinToString { "\"${it.summary ?: "(uten tittel)"}\" ${it.start?.dateTime ?: it.start?.date}–${it.end?.dateTime ?: it.end?.date}" },
-    )
-
     return parents.associate { parent ->
         parent.id to events.mapNotNull { event -> matchParent(event, parent.name) }
     }

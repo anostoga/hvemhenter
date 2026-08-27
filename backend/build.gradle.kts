@@ -87,8 +87,13 @@ ktor {
     }
 }
 
-// Flyway kjøres eksplisitt via `./gradlew flywayMigrate` (lokalt eller i CI før deploy),
-// IKKE automatisk som del av `build`/`test` — unngår at manglende DATABASE_URL feiler bygget.
+// Denne Gradle-tasken (`./gradlew flywayMigrate`) trengs FORTSATT lokalt og i CI-testjobben:
+// enkelte tester (f.eks. FamilyScopedAssignmentRepositoryTest) kobler til databasen direkte
+// via Exposed og går utenom `PostgresDatabase.connect()`/`module()`, så skjemaet må være
+// migrert på forhånd før de kjører.
+// Selve APPEN migrerer nå seg selv programmatisk ved oppstart (se PostgresDatabase.connect()),
+// så produksjonsdeploy (Fly.io) er ikke lenger avhengig av et eget CI/manuelt migreringssteg
+// mot Supabase — appen bruker samme DATABASE_URL den uansett kobler til med.
 flyway {
     url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage"
     user = System.getenv("DATABASE_USER") ?: "postgres"

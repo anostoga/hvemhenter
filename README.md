@@ -24,8 +24,14 @@ familie ser kun sine egne data (maks 2 foreldre per familie).
 ```bash
 cd backend
 docker compose up -d   # starter lokal Postgres på localhost:5432
-./gradlew flywayMigrate
 ```
+
+Appen migrerer databasen selv ved oppstart (`PostgresDatabase.connect()`), så et
+manuelt `./gradlew flywayMigrate`-steg er ikke nødvendig lenger for å kjøre
+appen lokalt eller i prod. Tasken finnes fortsatt og brukes av CI-testjobben,
+siden enkelte tester kobler til databasen direkte og trenger skjemaet
+migrert på forhånd — kjør `./gradlew flywayMigrate` manuelt hvis du kun skal
+kjøre tester uten å starte appen selv.
 
 ### Backend
 
@@ -41,7 +47,7 @@ Påkrevde miljøvariabler (se `backend/plugins/PostgresDatabase.kt`,
 | Variabel | Beskrivelse |
 |---|---|
 | `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET` | Fra Google Cloud Console (OAuth-klient) |
-| `GOOGLE_REDIRECT_URI` | F.eks. `https://<backend>/auth/google/callback` |
+| `GOOGLE_REDIRECT_URI` | Peker til **frontend** (som proxyer videre til backend, se under) — f.eks. `https://<frontend>/auth/google/callback`. Må også registreres i Google Cloud Console. |
 | `TOKEN_ENCRYPTION_KEY` | Base64 AES-256-nøkkel — generer med `TokenCipher.generateKey()` |
 | `STATE_SIGNING_SECRET` | Vilkårlig hemmelig streng for CSRF-beskyttelse av OAuth-state |
 | `SESSION_SIGNING_SECRET` | Egen hemmelighet for signering av sesjonscookien (ikke samme som over) |
@@ -58,6 +64,12 @@ cp env.example .env.local
 npm install
 npm run dev
 ```
+
+`next.config.mjs` proxyer `/api/*`, `/auth/*` og `/join/*` til `BACKEND_URL`
+(server-only env var), slik at nettleseren kun snakker med Next.js sitt eget
+origin — ingen CORS involvert. Sesjonscookien fra backend blir dermed
+samme-origin sett fra nettleseren, selv om frontend (Vercel) og backend
+(Fly.io) er ulike domener bak proxyen.
 
 ## Deploy (billigst mulig)
 

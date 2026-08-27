@@ -33,25 +33,25 @@ private const val AUTH_NAME = "session-auth"
  *   En forfalsket familyId ville omgått all family-scoping.
  * - `SESSION_SIGNING_SECRET` er en EGEN hemmelighet, atskilt fra `STATE_SIGNING_SECRET`
  *   (som kun brukes til den kortlivede OAuth-callback-staten) — de bør kunne roteres uavhengig.
- * - `SameSite=None; Secure` fordi frontend (Vercel) og backend (Fly.io) er ulike domener.
- *   `Secure` krever HTTPS — fungerer derfor lokalt kun over `https://localhost` eller ved å
- *   bruke `SameSite=Lax` lokalt (se README/kommentar ved bruk).
+ * - `SameSite=Lax` er nå trygt uansett miljø: nettleseren snakker kun med Next.js sitt
+ *   origin (som proxyer auth-, api- og join-rutene videre til dette API-et
+ *   server-til-server, se frontend/next.config.mjs) — cookien er dermed alltid
+ *   samme-origin fra nettleserens ståsted, selv om frontend (Vercel) og backend
+ *   (Fly.io) er ulike domener bak kulissene.
  */
 fun Application.configureSessionAuth() {
     val signingKey = Env.get("SESSION_SIGNING_SECRET")
         ?: error("SESSION_SIGNING_SECRET mangler (egen hemmelighet, ikke gjenbruk STATE_SIGNING_SECRET)")
     // Lokal utvikling kjører over http://localhost, der `Secure`-cookies aldri sendes av
-    // nettleseren (og heller ikke av Ktors test-klient). I produksjon (Fly.io/Vercel,
-    // ulike domener) er `Secure` + `SameSite=None` påkrevd. Styres eksplisitt via env,
+    // nettleseren (og heller ikke av Ktors test-klient). Styres eksplisitt via env,
     // IKKE gjettet fra request-URL, slik at oppførselen er forutsigbar og testbar.
     val secureCookies = Env.get("SESSION_COOKIE_SECURE")?.toBooleanStrictOrNull() ?: true
-    val sameSitePolicy = if (secureCookies) "None" else "Lax"
 
     install(Sessions) {
         cookie<UserSession>(SESSION_COOKIE_NAME) {
             cookie.path = "/"
             cookie.httpOnly = true
-            cookie.extensions["SameSite"] = sameSitePolicy
+            cookie.extensions["SameSite"] = "Lax"
             cookie.secure = secureCookies
             cookie.maxAgeInSeconds = 60 * 60 * 24 * 30 // 30 dager
             transform(SessionTransportTransformerMessageAuthentication(hex(signingKeyHex(signingKey))))
