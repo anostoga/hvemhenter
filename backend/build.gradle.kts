@@ -76,6 +76,7 @@ tasks.test {
     // uavhengig av lokalt oppsatte miljøvariabler.
     environment("TOKEN_ENCRYPTION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
     environment("STATE_SIGNING_SECRET", "test-signing-secret")
+    environment("SESSION_SIGNING_SECRET", "test-session-signing-secret")
     environment("GOOGLE_CLIENT_ID", "test-client-id")
     environment("GOOGLE_CLIENT_SECRET", "test-client-secret")
     environment("GOOGLE_REDIRECT_URI", "http://localhost:8080/oauth/callback")
