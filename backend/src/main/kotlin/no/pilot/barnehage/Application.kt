@@ -15,10 +15,6 @@ fun main() {
 }
 
 fun Application.module() {
-    // CORS er fjernet: nettleseren snakker kun med Next.js sitt origin, som
-    // proxyer /api/*, /auth/* og /join/* videre til dette API-et server-til-server
-    // (se rewrites() i frontend/next.config.mjs). Cross-origin-kall fra nettleser
-    // skjer dermed aldri direkte mot backend.
     configureSerialization()
 
     val database = PostgresDatabase.connect()
