@@ -88,6 +88,12 @@ ktor {
     }
 }
 
+tasks.named("shadowJar") {
+    withGroovyBuilder {
+        "mergeServiceFiles"()
+    }
+}
+
 // Denne Gradle-tasken (`./gradlew flywayMigrate`) trengs FORTSATT lokalt og i CI-testjobben:
 // enkelte tester (f.eks. FamilyScopedAssignmentRepositoryTest) kobler til databasen direkte
 // via Exposed og går utenom `PostgresDatabase.connect()`/`module()`, så skjemaet må være
