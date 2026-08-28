@@ -6,15 +6,15 @@ export default function JoinPage() {
   const [code, setCode] = useState("");
   const [status, setStatus] = useState<"idle" | "loading">("idle");
 
-  const backendUrl = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
-
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
     // /join/start er en GET-rute som (etter en rask kode-sjekk) redirigerer
     // videre til Googles innloggingsside — naviger nettleseren dit direkte,
-    // ikke fetch() (det er ikke et JSON-API-kall).
-    window.location.href = `${backendUrl}/join/start?code=${encodeURIComponent(code)}`;
+    // ikke fetch() (det er ikke et JSON-API-kall). Relativ URL: Next.js
+    // proxyer /join/* til backend (se rewrites() i next.config.mjs), slik at
+    // sesjonscookien fra /auth/google/callback ender opp på riktig origin.
+    window.location.href = `/join/start?code=${encodeURIComponent(code)}`;
   }
 
   return (

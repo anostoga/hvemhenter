@@ -31,7 +31,10 @@ export interface Family {
   sharedCalendarId: string;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8080";
+// Relativ URL — Next.js proxyer /api/* og /auth/* videre til backend (se
+// rewrites() i next.config.mjs), så nettleseren snakker kun med Next.js sitt
+// eget origin. Ingen CORS-håndtering nødvendig lenger.
+const API_BASE_URL = "";
 
 async function handle<T>(response: Response): Promise<T> {
   if (response.status === 401) {
