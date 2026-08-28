@@ -8,7 +8,7 @@ export default function JoinPage() {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    setStatus("loading");
+    setStatus("loading ..");
     // /join/start er en GET-rute som (etter en rask kode-sjekk) redirigerer
     // videre til Googles innloggingsside — naviger nettleseren dit direkte,
     // ikke fetch() (det er ikke et JSON-API-kall). Relativ URL: Next.js
