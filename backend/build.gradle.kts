@@ -1,5 +1,5 @@
-val kotlinVersion = "1.9.24"
-val ktorVersion = "2.3.12"
+val kotlinVersion = "2.4.10"
+val ktorVersion = "3.5.2"
 val exposedVersion = "0.51.0"
 val logbackVersion = "1.5.6"
 
@@ -8,15 +8,15 @@ buildscript {
         // Flyway-gradle-tasks kjører i build-classpath, trenger driver + dialect-modul her også
         // (ikke bare i app sin `implementation`-classpath).
         classpath("org.postgresql:postgresql:42.7.4")
-        classpath("org.flywaydb:flyway-database-postgresql:10.15.0")
+        classpath("org.flywaydb:flyway-database-postgresql:13.4.0")
     }
 }
 
 plugins {
-    kotlin("jvm") version "1.9.24"
-    kotlin("plugin.serialization") version "1.9.24"
-    id("io.ktor.plugin") version "2.3.12"
-    id("org.flywaydb.flyway") version "10.15.0"
+    kotlin("jvm") version "2.4.10"
+    kotlin("plugin.serialization") version "2.4.10"
+    id("io.ktor.plugin") version "3.5.2"
+    id("org.flywaydb.flyway") version "13.4.0"
     application
 }
 
@@ -56,7 +56,7 @@ dependencies {
     implementation("org.jetbrains.exposed:exposed-java-time:$exposedVersion")
     implementation("org.postgresql:postgresql:42.7.4")
     implementation("com.zaxxer:HikariCP:5.1.0")
-    implementation("org.flywaydb:flyway-database-postgresql:10.15.0")
+    implementation("org.flywaydb:flyway-database-postgresql:13.4.0")
 
     implementation("ch.qos.logback:logback-classic:$logbackVersion")
     implementation("io.github.cdimascio:dotenv-kotlin:6.4.1")
@@ -66,8 +66,15 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
+// jvmToolchain lar Gradle auto-provisionere en JDK 25 for kompilering/tester,
+// uavhengig av hvilken JDK selve Gradle-daemonen kjører på (nyttig i CI/lokalt
+// der maskinen ikke nødvendigvis har JDK 25 forhåndsinstallert).
+kotlin {
+    jvmToolchain(25)
+}
+
 tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach {
-    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_21)
+    compilerOptions.jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_25)
 }
 
 tasks.test {
