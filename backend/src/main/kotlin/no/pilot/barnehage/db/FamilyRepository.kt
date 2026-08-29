@@ -25,6 +25,13 @@ class FamilyRepository(private val database: Database) {
             .firstOrNull()?.toParentRecord()
     }
 
+    /** Slår opp en forelder ved parent-id (fra sesjonen) — brukt av /auth/whoami til
+     * å vise navnet til den innloggede brukeren selv (ikke andre), ikke lagret i cookien. */
+    fun findParent(id: UUID): ParentRecord? = transaction(database) {
+        ParentsTable.selectAll().where { ParentsTable.id eq id }
+            .firstOrNull()?.toParentRecord()
+    }
+
     fun findFamily(familyId: UUID): FamilyRecord? = transaction(database) {
         FamiliesTable.selectAll().where { FamiliesTable.id eq familyId }
             .firstOrNull()?.toFamilyRecord()

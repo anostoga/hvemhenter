@@ -1,6 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
+import { useSearchParams } from "next/navigation";
+
+function NotRegisteredNotice() {
+  const params = useSearchParams();
+  if (params.get("error") !== "ikke_registrert") return null;
+  return (
+    <p role="alert">
+      Fant ingen familie knyttet til Google-kontoen din ennå. Skriv inn koden du har fått under for å
+      bli med i en familie.
+    </p>
+  );
+}
 
 export default function JoinPage() {
   const [code, setCode] = useState("");
@@ -20,6 +32,9 @@ export default function JoinPage() {
   return (
     <main>
       <h1>Bli med i en familie</h1>
+      <Suspense fallback={null}>
+        <NotRegisteredNotice />
+      </Suspense>
       <p>Skriv inn koden du har fått for å opprette en ny familie, eller invitasjonskoden fra den andre forelderen.</p>
       <form onSubmit={handleSubmit}>
         <label htmlFor="code">Kode</label>

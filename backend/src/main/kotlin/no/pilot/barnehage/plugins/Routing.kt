@@ -39,6 +39,7 @@ fun Application.configureRouting(database: Database) {
     val assignmentService = AssignmentService()
     val familyRepository = FamilyRepository(database)
     val frontendSuccessUrl = Env.get("FRONTEND_URL")?.let { "$it/tilkoblet" } ?: "/"
+    val frontendJoinUrl = Env.get("FRONTEND_URL")?.let { "$it/join" } ?: "/join"
 
     routing {
         get("/health") {
@@ -54,7 +55,7 @@ fun Application.configureRouting(database: Database) {
             }
         }
 
-        authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, familyRepository)
+        authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository)
         joinRoutes(oauthClient, stateSigner, familyRepository)
         familyRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)

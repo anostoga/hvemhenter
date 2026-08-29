@@ -1,4 +1,5 @@
 import "./globals.css";
+import { Nav } from "./components/Nav";
 
 export const metadata = {
   title: "Barnehage-planlegger",
@@ -8,7 +9,10 @@ export const metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="no">
-      <body>{children}</body>
+      <body>
+        <Nav />
+        {children}
+      </body>
     </html>
   );
 }

@@ -31,6 +31,11 @@ export interface Family {
   sharedCalendarId: string;
 }
 
+export interface WhoAmI {
+  loggedIn: boolean;
+  name?: string;
+}
+
 // Relativ URL — Next.js proxyer /api/* og /auth/* videre til backend (se
 // rewrites() i next.config.mjs), så nettleseren snakker kun med Next.js sitt
 // eget origin. Ingen CORS-håndtering nødvendig lenger.
@@ -38,9 +43,10 @@ const API_BASE_URL = "";
 
 async function handle<T>(response: Response): Promise<T> {
   if (response.status === 401) {
-    // Sesjonen mangler/er utløpt — send brukeren til innlogging/join-siden
-    // i stedet for å vise en kryptisk feilmelding.
-    window.location.href = "/join";
+    // Sesjonen mangler/er utløpt — send brukeren til forsiden i stedet for en
+    // kryptisk feilmelding. Forsiden viser selv lenker til innlogging/join,
+    // så dette er ikke en blindvei slik /join alene var (den krevde en kode).
+    window.location.href = "/";
     throw new Error("ikke innlogget");
   }
   if (!response.ok) {
@@ -55,6 +61,15 @@ async function handle<T>(response: Response): Promise<T> {
 // riktig familie, se auth/SessionAuth.kt.
 export const api = {
   authStartUrl: () => `${API_BASE_URL}/auth/google/start`,
+  loginUrl: () => `${API_BASE_URL}/auth/login`,
+
+  // Svarer alltid 200 (også uinnlogget) — trygt å kalle fra en offentlig side
+  // uten at det trigger 401-redirecten i handle().
+  whoAmI: () =>
+    fetch(`${API_BASE_URL}/auth/whoami`, { credentials: "include" }).then((r) => r.json() as Promise<WhoAmI>),
+
+  logout: () =>
+    fetch(`${API_BASE_URL}/auth/logout`, { method: "POST", credentials: "include" }),
 
   getParents: () => fetch(`${API_BASE_URL}/api/parents`, { credentials: "include" }).then((r) => handle<Parent[]>(r)),
 
@@ -80,7 +95,7 @@ export const api = {
       credentials: "include",
     });
     if (response.status === 401) {
-      window.location.href = "/join";
+      window.location.href = "/";
       throw new Error("ikke innlogget");
     }
     if (!response.ok) {
