@@ -37,6 +37,14 @@ export function Nav() {
           <>
             <a href={api.loginUrl()}>Logg inn</a>
             <a href="/join">Bli med i en familie</a>
+            {process.env.NODE_ENV !== "production" && (
+              // Kun synlig i lokal dev (npm run dev) — lar deg teste innlogging uten en
+              // ekte Google-klient. Krever i tillegg MOCK_GOOGLE_AUTH=true i backend/.env,
+              // se README "Mock Google-innlogging (lokal dev)". Denne lenken vises alltid
+              // i dev uavhengig av det flagget — /auth/mock-login svarer selv 404 hvis
+              // MOCK_GOOGLE_AUTH ikke er satt på backend-siden.
+              <a href="/auth/mock-login">Mock-innlogging (dev)</a>
+            )}
           </>
         )}
       </span>

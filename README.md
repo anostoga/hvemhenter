@@ -55,6 +55,7 @@ Påkrevde miljøvariabler (se `backend/plugins/PostgresDatabase.kt`,
 | `FAMILY_CREATION_CODE` | Kode som lar en ny familie opprettes (delt kun med deg selv/betrodde) |
 | `FRONTEND_URL` | For redirect etter vellykket innlogging/OAuth-tilkobling |
 | `DATABASE_URL` / `DATABASE_USER` / `DATABASE_PASSWORD` | Postgres-tilkobling |
+| `MOCK_GOOGLE_AUTH` | KUN lokal dev — `true` slår på `/auth/mock-login` (se under), lar deg teste uten en ekte Google-klient. ALDRI `true` i prod. |
 
 ### Frontend
 
@@ -70,6 +71,36 @@ npm run dev
 origin — ingen CORS involvert. Sesjonscookien fra backend blir dermed
 samme-origin sett fra nettleseren, selv om frontend (Vercel) og backend
 (Fly.io) er ulike domener bak proxyen.
+
+### Mock Google-innlogging (lokal dev)
+
+Du trenger ikke en ekte Google Cloud OAuth-klient for å teste appen lokalt.
+Sett i `backend/.env`:
+
+```
+MOCK_GOOGLE_AUTH=true
+```
+
+og start backend + frontend som vanlig (`GOOGLE_CLIENT_ID`/`SECRET`/`REDIRECT_URI`
+kan stå tomme — de brukes uansett aldri i mock-modus). Gå så til
+`http://localhost:8080/auth/mock-login` (eller lenk dit fra frontend) og fyll
+inn et navn:
+
+- **Kode utfylt** — oppretter en ny familie (`FAMILY_CREATION_CODE`) eller blir
+  med i en eksisterende familie via invitasjonskode, akkurat som `/join` gjør.
+- **Kode tom** — logger inn som en allerede registrert mock-bruker (samme
+  navn/e-post → samme forelder-rad gjenbrukes). Ukjent bruker sendes til
+  `/join?error=ikke_registrert`, akkurat som ekte `/auth/login` ville gjort.
+
+Mock-innloggingen setter en ekte, gyldig sesjonscookie (samme mekanisme som
+ekte Google-innlogging) og en fiktiv OAuth-token-rad, slik at appen for øvrig
+oppfører seg identisk — bortsett fra at ekte Google Calendar-kall vil feile
+(forventet, siden ingen ekte Google-tilkobling er gjort).
+
+**`MOCK_GOOGLE_AUTH` må ALDRI settes i Fly.io/Vercel-hemmeligheter** — den
+finnes kun som en lokal `.env`-bekvemmelighet (se `Env.kt`), og selve
+endepunktet (`/auth/mock-login`) registreres ikke i det hele tatt med mindre
+flagget er satt til `true`.
 
 ## Deploy (billigst mulig)
 

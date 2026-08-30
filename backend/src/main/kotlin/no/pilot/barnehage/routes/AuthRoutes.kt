@@ -5,6 +5,7 @@ import io.ktor.server.application.*
 import io.ktor.server.auth.authenticate
 import io.ktor.server.response.respond
 import io.ktor.server.response.respondRedirect
+import io.ktor.server.response.respondText
 import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
@@ -20,6 +21,7 @@ import no.pilot.barnehage.crypto.StateSigner
 import no.pilot.barnehage.db.FamilyRepository
 import no.pilot.barnehage.db.TokenRepository
 import no.pilot.barnehage.google.GoogleOAuthClient
+import no.pilot.barnehage.Env
 import java.time.LocalDateTime
 import java.util.UUID
 
@@ -61,6 +63,76 @@ fun Route.registerWhoAmIAndLogout(familyRepository: FamilyRepository) {
 }
 
 /**
+ * Mock-innlogging for lokal utvikling — helt frakoblet ekte Google OAuth, så du
+ * slipper å sette opp en Google Cloud-klient bare for å teste appen lokalt.
+ * MÅ ALDRI skrus på utenfor lokal dev (se MOCK_GOOGLE_AUTH-sjekken i authRoutes()
+ * over — kun lest fra .env, aldri satt i Fly.io/Vercel-hemmeligheter).
+ *
+ * "google_sub" for en mock-bruker er deterministisk avledet fra e-posten
+ * (`mock:<epost>`), slik at samme testbruker gjenbrukes ved gjentatte innlogginger
+ * i stedet for å opprette en ny forelder-rad hver gang.
+ */
+fun Route.registerMockGoogleLogin(
+    familyRepository: FamilyRepository,
+    tokenRepository: TokenRepository,
+    frontendSuccessUrl: String,
+    frontendJoinUrl: String,
+) {
+    get("/auth/mock-login") {
+        val name = call.parameters["name"]
+        if (name.isNullOrBlank()) {
+            call.respondText(mockLoginFormHtml(), contentType = io.ktor.http.ContentType.Text.Html)
+            return@get
+        }
+
+        val email = call.parameters["email"]?.takeIf { it.isNotBlank() } ?: "${name.lowercase().replace(" ", ".")}@mock.local"
+        val code = call.parameters["code"]?.takeIf { it.isNotBlank() }
+        val mockGoogleSub = "mock:$email"
+
+        val familyId = if (code != null) {
+            handleJoin(code, mockGoogleSub, email, name, familyRepository)
+                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
+        } else {
+            familyRepository.findParentByGoogleSub(mockGoogleSub)?.familyId?.toString()
+                ?: return@get call.respondRedirect("$frontendJoinUrl?error=ikke_registrert")
+        }
+
+        val parent = familyRepository.findParentByGoogleSub(mockGoogleSub)
+            ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet feil i mock-innlogging"))
+
+        // Fiktive tokens — ekte Google Calendar-kall vil feile med disse (forventet:
+        // det er nettopp POENGET med mock-modus at ingen ekte Google-kall skjer).
+        // "connected" vises likevel som true i UI siden en token-rad finnes.
+        tokenRepository.upsert(
+            parentId = parent.id,
+            accessToken = "mock-access-token",
+            refreshToken = "mock-refresh-token",
+            expiresAt = LocalDateTime.now().plusDays(365),
+        )
+
+        call.sessions.set(UserSession(parentId = parent.id.toString(), familyId = familyId))
+        call.respondRedirect(frontendSuccessUrl)
+    }
+}
+
+private fun mockLoginFormHtml(): String = """
+    <!DOCTYPE html>
+    <html lang="no">
+    <body style="font-family: system-ui; max-width: 480px; margin: 2rem auto;">
+      <h1>Mock Google-innlogging (kun lokal dev)</h1>
+      <p>Fyll inn en kode KUN hvis du oppretter en ny familie eller blir med i en via
+         invitasjonskode — la den stå tom for å logge inn som en allerede registrert testbruker.</p>
+      <form method="get" action="/auth/mock-login">
+        <label>Navn <input name="name" required></label><br>
+        <label>E-post (valgfri) <input name="email"></label><br>
+        <label>Kode (valgfri) <input name="code"></label><br>
+        <button type="submit">Logg inn</button>
+      </form>
+    </body>
+    </html>
+""".trimIndent()
+
+/**
  * Google OAuth-flyt. `state` er signert (HMAC) og bærer enten:
  * - `reconnect:<parentId>` (allerede innlogget forelder som kobler til/fornyer
  *   kalendertilgangen sin — se `/auth/google/start`),
@@ -86,6 +158,12 @@ fun Route.authRoutes(
     get("/auth/login") {
         val state = stateSigner.sign("login")
         call.respondRedirect(oauthClient.buildAuthorizeUrl(state))
+    }
+
+    // Kun aktivert lokalt via MOCK_GOOGLE_AUTH=true (se Routing.kt) — lar deg logge inn/
+    // opprette en familie i dev uten en ekte Google OAuth-klient. Se dev-login.md/README.
+    if (Env.get("MOCK_GOOGLE_AUTH")?.toBooleanStrictOrNull() == true) {
+        registerMockGoogleLogin(familyRepository, tokenRepository, frontendSuccessUrl, frontendJoinUrl)
     }
 
     // Krever eksisterende sesjon — en forelder kan kun koble til/fornye SIN EGEN

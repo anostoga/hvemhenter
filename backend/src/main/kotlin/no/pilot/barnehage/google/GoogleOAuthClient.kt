@@ -32,11 +32,18 @@ data class GoogleOAuthConfig(
     val redirectUri: String,
 ) {
     companion object {
-        fun fromEnv(): GoogleOAuthConfig = GoogleOAuthConfig(
-            clientId = Env.get("GOOGLE_CLIENT_ID") ?: error("GOOGLE_CLIENT_ID mangler"),
-            clientSecret = Env.get("GOOGLE_CLIENT_SECRET") ?: error("GOOGLE_CLIENT_SECRET mangler"),
-            redirectUri = Env.get("GOOGLE_REDIRECT_URI") ?: error("GOOGLE_REDIRECT_URI mangler"),
-        )
+        /** Faller tilbake til plassholderverdier når MOCK_GOOGLE_AUTH=true og ekte
+         * Google-nøkler ikke er satt — appen konstruerer likevel en GoogleOAuthClient
+         * ved oppstart (se Routing.kt), men den brukes aldri i mock-modus siden
+         * /auth/mock-login erstatter hele OAuth-rundturen. */
+        fun fromEnv(): GoogleOAuthConfig {
+            val mockAuth = Env.get("MOCK_GOOGLE_AUTH")?.toBooleanStrictOrNull() == true
+            return GoogleOAuthConfig(
+                clientId = Env.get("GOOGLE_CLIENT_ID") ?: if (mockAuth) "mock-client-id" else error("GOOGLE_CLIENT_ID mangler"),
+                clientSecret = Env.get("GOOGLE_CLIENT_SECRET") ?: if (mockAuth) "mock-client-secret" else error("GOOGLE_CLIENT_SECRET mangler"),
+                redirectUri = Env.get("GOOGLE_REDIRECT_URI") ?: if (mockAuth) "http://localhost:3000/auth/google/callback" else error("GOOGLE_REDIRECT_URI mangler"),
+            )
+        }
     }
 }
 
