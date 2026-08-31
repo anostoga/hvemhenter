@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { api, Family, Parent } from "@/lib/api";
+import { FamilyIllustration } from "@/app/components/FamilyIllustration";
 
 /**
  * Viser hvem som er med i familien (parents fra /api/parents) og
@@ -41,7 +43,7 @@ export default function FamiliePage() {
           <>
             <p>
               Gi denne koden til den andre forelderen — de skriver den inn på{" "}
-              <a href="/join">bli med i en familie</a>-siden for å koble seg til familien din:
+              <Link href="/join">bli med i en familie</Link>-siden for å koble seg til familien din:
             </p>
             <p>
               <code>{family.inviteCode}</code>
@@ -51,6 +53,10 @@ export default function FamiliePage() {
           <p>Familien har allerede to foreldre — det finnes ingen aktiv invitasjonskode.</p>
         )}
       </section>
+
+      <div className="family-illustration-wrapper">
+        <FamilyIllustration />
+      </div>
     </main>
   );
 }

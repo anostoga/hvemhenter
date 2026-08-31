@@ -130,3 +130,10 @@ button:hover {
 .week-slot-active {
   background: #fff8e1;
 }
+
+.family-illustration-wrapper svg {
+  max-width: 100%;
+  height: auto;
+  display: block;
+  margin-top: 1.5rem;
+}

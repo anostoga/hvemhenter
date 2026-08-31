@@ -1,20 +1,17 @@
-"use client";
-
-import { useEffect, useState } from "react";
-import { api, WhoAmI } from "@/lib/api";
+import Link from "next/link";
+import { api } from "@/lib/api";
+import { getServerWhoAmI } from "@/lib/server-api";
 
 /**
  * Offentlig forside — vises for ALLE besøkende, innlogget eller ikke, uten å
  * gjøre noen familie-scopede API-kall (de ville 401'et for uinnloggede og
  * tvunget frem en redirect, som var akkurat problemet denne siden fikser).
- * Login-status hentes kun via /auth/whoami, som alltid svarer 200.
+ * Server Component: login-status hentes SERVER-SIDE via getServerWhoAmI()
+ * (se lib/server-api.ts), samme mønster som RootLayout/Nav.tsx — ingen
+ * client-side fetch, ingen "blink".
  */
-export default function LandingPage() {
-  const [who, setWho] = useState<WhoAmI | null>(null);
-
-  useEffect(() => {
-    api.whoAmI().then(setWho).catch(() => setWho({ loggedIn: false }));
-  }, []);
+export default async function LandingPage() {
+  const who = await getServerWhoAmI();
 
   return (
     <main>
@@ -25,10 +22,10 @@ export default function LandingPage() {
         Google-kalender.
       </p>
 
-      {who?.loggedIn ? (
+      {who.loggedIn ? (
         <p>
           Du er innlogget som <strong>{who.name ?? "deg"}</strong>.{" "}
-          <a href="/innstillinger">Gå til innstillinger</a>
+          <Link href="/innstillinger">Gå til innstillinger</Link>
         </p>
       ) : (
         <section>
@@ -38,7 +35,7 @@ export default function LandingPage() {
           </p>
           <p>
             Har du en invitasjonskode, eller vil du opprette en ny familie?{" "}
-            <a href="/join">Bli med i en familie</a>
+            <Link href="/join">Bli med i en familie</Link>
           </p>
         </section>
       )}
