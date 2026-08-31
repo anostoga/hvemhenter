@@ -34,6 +34,12 @@ export interface Family {
   inviteCode: string | null;
 }
 
+export interface AvailableCalendar {
+  id: string;
+  summary: string;
+  primary: boolean;
+}
+
 export interface WhoAmI {
   loggedIn: boolean;
   name?: string;
@@ -117,4 +123,23 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ sharedCalendarId }),
     }).then((r) => handle<Family>(r)),
+
+  // Returnerer `null` (i stedet for å kaste) når brukeren ikke har koblet til
+  // Google ennå (409) — det er en forventet tilstand UI-et skal falle tilbake
+  // fra til fritekst-input, ikke en feil å vise som en generell feilmelding.
+  getAvailableCalendars: async (): Promise<AvailableCalendar[] | null> => {
+    const response = await fetch(`${API_BASE_URL}/api/family/available-calendars`, { credentials: "include" });
+    if (response.status === 401) {
+      window.location.href = "/";
+      throw new Error("ikke innlogget");
+    }
+    if (response.status === 409) {
+      return null;
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+    return response.json() as Promise<AvailableCalendar[]>;
+  },
 };

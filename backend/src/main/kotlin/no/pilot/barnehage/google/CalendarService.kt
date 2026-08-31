@@ -63,6 +63,12 @@ data class CalendarEventItem(
 @Serializable
 data class CalendarEventsResponse(val items: List<CalendarEventItem> = emptyList())
 
+@Serializable
+data class CalendarListEntry(val id: String, val summary: String, val primary: Boolean = false)
+
+@Serializable
+data class CalendarListResponse(val items: List<CalendarListEntry> = emptyList())
+
 /**
  * Tynn wrapper rundt Google Calendar API v3. Kaller med enkel retry (eksponentiell backoff,
  * 3 forsøk) ved forbigående feil (5xx/nettverk), jf. beslutning i planen.
@@ -146,6 +152,21 @@ class CalendarService(private val httpClient: HttpClient) {
                 parameter("timeMax", timeMaxIso)
                 parameter("singleEvents", "true")
                 parameter("orderBy", "startTime")
+            }.body()
+        }
+        return response.items
+    }
+
+    /**
+     * Lister kalenderne den innloggede brukeren har tilgang til (egne + delte),
+     * brukt til å la brukeren velge delt familiekalender fra en nedtrekksliste
+     * i stedet for å skrive inn en rå kalender-ID. Krever kun `calendar.readonly`
+     * (allerede en del av scopet appen ber om, se GoogleOAuthClient).
+     */
+    suspend fun listCalendars(accessToken: String): List<CalendarListEntry> {
+        val response: CalendarListResponse = withRetry("listCalendars") {
+            httpClient.get("https://www.googleapis.com/calendar/v3/users/me/calendarList") {
+                header("Authorization", "Bearer $accessToken")
             }.body()
         }
         return response.items
