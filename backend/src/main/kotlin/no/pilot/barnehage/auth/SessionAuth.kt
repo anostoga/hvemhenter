@@ -20,7 +20,7 @@ import kotlinx.serialization.Serializable
  * IKKE navn/e-post her (unngå PII i en cookie som ligger i nettleseren).
  */
 @Serializable
-data class UserSession(val parentId: String, val familyId: String) : Principal
+data class UserSession(val parentId: String, val familyId: String)
 
 private const val SESSION_COOKIE_NAME = "bhg_session"
 private const val AUTH_NAME = "session-auth"
