@@ -28,7 +28,7 @@ export default function LandingPage() {
       {who?.loggedIn ? (
         <p>
           Du er innlogget som <strong>{who.name ?? "deg"}</strong>.{" "}
-          <a href="/dashboard">Gå til dashbordet</a>
+          <a href="/innstillinger">Gå til innstillinger</a>
         </p>
       ) : (
         <section>
