@@ -2,7 +2,7 @@ import "./globals.css";
 import { Nav } from "./components/Nav";
 
 export const metadata = {
-  title: "Barnehage-planlegger",
+  title: "HentMeg.no",
   description: "Fordel levering og henting i barnehagen mellom to foreldre",
 };
 

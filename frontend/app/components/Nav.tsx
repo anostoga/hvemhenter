@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { api, WhoAmI } from "@/lib/api";
+import { Logo } from "./Logo";
 
 /**
  * Vises på alle sider (se layout.tsx). Kaller /auth/whoami — den svarer alltid
@@ -24,7 +25,8 @@ export function Nav() {
   return (
     <nav className="topnav">
       <a href="/" className="topnav-brand">
-        Barnehage-planlegger
+        <Logo size={32} />
+        Hvem henter?
       </a>
       <span className="topnav-links">
         {who === null ? null : who.loggedIn ? (
