@@ -29,6 +29,9 @@ export interface Suggestion {
 export interface Family {
   id: string;
   sharedCalendarId: string;
+  // null når familien allerede har 2 foreldre (koden er engangsbruk og
+  // invalideres server-side når forelder #2 blir med, se backend FamilyRepository).
+  inviteCode: string | null;
 }
 
 export interface WhoAmI {

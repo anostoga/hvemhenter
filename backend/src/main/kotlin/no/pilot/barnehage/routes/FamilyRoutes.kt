@@ -15,7 +15,7 @@ import no.pilot.barnehage.db.FamilyRepository
 import java.util.UUID
 
 @Serializable
-data class FamilyResponse(val id: String, val sharedCalendarId: String)
+data class FamilyResponse(val id: String, val sharedCalendarId: String, val inviteCode: String?)
 
 @Serializable
 data class UpdateSharedCalendarRequest(val sharedCalendarId: String)
@@ -31,7 +31,7 @@ fun Route.familyRoutes(familyRepository: FamilyRepository) {
             val familyId = UUID.fromString(session.familyId)
             val family = familyRepository.findFamily(familyId)
                 ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("familie ikke funnet"))
-            call.respond(FamilyResponse(id = family.id.toString(), sharedCalendarId = family.sharedCalendarId))
+            call.respond(FamilyResponse(id = family.id.toString(), sharedCalendarId = family.sharedCalendarId, inviteCode = family.inviteCode))
         }
 
         put("/api/family/shared-calendar") {
@@ -42,7 +42,11 @@ fun Route.familyRoutes(familyRepository: FamilyRepository) {
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("sharedCalendarId mangler"))
             }
             familyRepository.updateSharedCalendarId(familyId, request.sharedCalendarId)
-            call.respond(HttpStatusCode.OK, FamilyResponse(id = familyId.toString(), sharedCalendarId = request.sharedCalendarId))
+            val family = familyRepository.findFamily(familyId)
+            call.respond(
+                HttpStatusCode.OK,
+                FamilyResponse(id = familyId.toString(), sharedCalendarId = request.sharedCalendarId, inviteCode = family?.inviteCode),
+            )
         }
     }
 }

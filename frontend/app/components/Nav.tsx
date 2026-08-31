@@ -32,7 +32,9 @@ export function Nav() {
         {who === null ? null : who.loggedIn ? (
           <>
             <span>Innlogget som {who.name ?? "deg"}</span>
-            <a href="/dashboard">Dashbord</a>
+            <a href="/dashboard">Innstillinger</a>
+            <a href="/kalender">Kalender</a>
+            <a href="/familie">Familie</a>
             <button onClick={handleLogout}>Logg ut</button>
           </>
         ) : (
