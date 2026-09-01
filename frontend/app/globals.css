@@ -7,6 +7,12 @@ body {
   color: #1a1a1a;
 }
 
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 h1 {
   font-size: 1.5rem;
 }
@@ -24,10 +30,26 @@ button {
   border-radius: 6px;
   border: 1px solid #333;
   background: white;
+  /* 44px er den vanlige anbefalte minste touch-target-høyden (WCAG 2.5.5/
+     Apple/Google sine retningslinjer) — sikrer at knapper er lette å treffe
+     med fingeren på mobil, uavhengig av innholdets naturlige høyde. */
+  min-height: 44px;
+  /* ≥16px unngår at Safari på iOS zoomer inn automatisk ved fokus på et
+     skjemaelement med mindre skrift. */
+  font-size: 16px;
 }
 
 button:hover {
   background: #f0f0f0;
+}
+
+input,
+select {
+  font-size: 16px;
+  min-height: 44px;
+  padding: 0.4rem 0.6rem;
+  border-radius: 6px;
+  border: 1px solid #999;
 }
 
 .error {
@@ -36,13 +58,18 @@ button:hover {
 
 .topnav {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 0.75rem;
+  flex-direction: column;
+  gap: 0.5rem;
   padding-bottom: 1rem;
   margin-bottom: 1rem;
   border-bottom: 1px solid #ddd;
+}
+
+.topnav-top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .topnav-brand {
@@ -57,11 +84,60 @@ button:hover {
 .topnav-links {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
 .topnav-links button {
   padding: 0.25rem 0.75rem;
+}
+
+.topnav-username {
+  font-weight: 600;
+  font-family: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  min-height: auto;
+  cursor: pointer;
+}
+
+.topnav-username:hover {
+  text-decoration: underline;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 100;
+}
+
+.modal-dialog {
+  background: white;
+  border-radius: 8px;
+  padding: 1.5rem;
+  min-width: 240px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+}
+
+.modal-dialog-name {
+  margin: 0;
+  font-weight: 600;
+}
+
+.modal-dialog-close {
+  background: none;
+  border: none;
+  color: #555;
 }
 
 .week-calendar {
@@ -136,4 +212,34 @@ button:hover {
   height: auto;
   display: block;
   margin-top: 1.5rem;
+}
+
+/*
+ * Mobiltilpasning — brytningsgrense 640px (samme som body sin max-width, se
+ * plan.md i sesjonsmappen for begrunnelsen for akkurat denne grensen).
+ * Under denne bredden:
+ * - reduseres body-padding (mer innhold synlig på en smal skjerm)
+ * - select/input blir fullbredde (lettere å lese/tappe enn nettleserens
+ *   naturlige, ofte for smale, standardbredde)
+ * - WeekCalendar sine uke-rader stables vertikalt (én dag per rad, full
+ *   bredde) i stedet for 5 kolonner side ved side — unngår horisontal
+ *   scroll, som er en dårlig mobilopplevelse for appens kjernefunksjon.
+ */
+@media (max-width: 640px) {
+  body {
+    padding: 1rem;
+  }
+
+  select,
+  input {
+    width: 100%;
+  }
+
+  .week-calendar-week {
+    flex-direction: column;
+  }
+
+  .week-calendar-day {
+    min-width: 0;
+  }
 }
