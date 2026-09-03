@@ -11,3 +11,4 @@ out/
 # VS Code
 .vscode/
 
+.dev-logs/

@@ -19,6 +19,20 @@ familie ser kun sine egne data (maks 2 foreldre per familie).
 
 ## Kom i gang
 
+### Snarvei: start alt med ett script
+
+Når `backend/.env` og `frontend/.env.local` er satt opp (se seksjonene under),
+kan du starte Postgres, backend og frontend samlet med:
+
+```bash
+./scripts/dev.sh
+```
+
+Scriptet starter Postgres-containeren, venter til den er klar, starter
+backend og venter til den svarer, og starter så frontend. Trykk Ctrl+C for å
+stoppe backend og frontend igjen (Postgres-containeren lar vi fortsette å
+kjøre). Logger skrives til `.dev-logs/backend.log` og `.dev-logs/frontend.log`.
+
 ### Lokal database (Postgres i Docker)
 
 ```bash

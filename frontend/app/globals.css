@@ -243,3 +243,29 @@ select {
     min-width: 0;
   }
 }
+
+/*
+ * Kalenderen (5 dag-kolonner à minst 110px + mellomrom) trenger ca. 580px
+ * innholdsbredde, som ikke fikk plass innenfor den tidligere 640px
+ * body-bredden minus sidepadding — det ga en (liten, men irriterende)
+ * horisontal scrollbar på skrivebord/nettbrett. Løsningen er gjort generell
+ * for ALLE sider (ikke bare kalenderen) fra og med 640px bredde (der
+ * mobil-stablingen over slutter å gjelde, se forrige media query): body sin
+ * max-width vokser fra 640px opp til 900px etter hvert som viewportet blir
+ * bredere, slik at alle sider (ikke bare kalenderen) får godt med albuerom
+ * på større skjermer.
+ */
+@media (min-width: 640px) {
+  body {
+    /*
+     * clamp() sikrer at body ALLTID er minst 630px bred (nok til at
+     * kalenderens 5 dag-kolonner + mellomrom + sidepadding OG 1px kant på
+     * hver side får plass uten intern horisontal scroll i WeekCalendar),
+     * samtidig som den vokser med viewportet opp til 900px på større
+     * skjermer. 630px < 640px (denne media queryens nedre grense), så det er
+     * alltid trygt — body blir aldri bredere enn viewportet selv på de
+     * smaleste skjermene denne regelen gjelder for.
+     */
+    max-width: clamp(630px, calc(100vw - 4rem), 900px);
+  }
+}
