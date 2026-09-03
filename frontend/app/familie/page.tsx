@@ -53,10 +53,6 @@ export default function FamiliePage() {
           <p>Familien har allerede to foreldre — det finnes ingen aktiv invitasjonskode.</p>
         )}
       </section>
-
-      <div className="family-illustration-wrapper">
-        <FamilyIllustration />
-      </div>
     </main>
   );
 }

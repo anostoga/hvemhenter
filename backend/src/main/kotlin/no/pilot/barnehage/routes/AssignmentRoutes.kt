@@ -217,7 +217,7 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
  */
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
     familyRepository.findParents(familyId).map { parent ->
-        Parent(id = parent.id.toString(), name = parent.name, connected = tokenRepository.find(parent.id) != null)
+        Parent(id = parent.id.toString(), name = parent.name, avatar = parent.avatar, connected = tokenRepository.find(parent.id) != null)
     }
 
 private suspend fun fetchBusyPeriods(

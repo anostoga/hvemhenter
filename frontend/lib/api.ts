@@ -6,6 +6,7 @@ export type AssignmentSource = "AUTO" | "MANUAL";
 export interface Parent {
   id: string;
   name: string;
+  avatar: string | null;
   connected: boolean;
 }
 
@@ -43,7 +44,17 @@ export interface AvailableCalendar {
 export interface WhoAmI {
   loggedIn: boolean;
   name?: string;
+  avatar?: string | null;
 }
+
+export interface Profile {
+  name: string;
+  avatar: string | null;
+}
+
+// Samme faste sett som backend sin validering (se routes/ProfileRoutes.kt
+// ALLOWED_AVATARS) — holdt i sync manuelt.
+export const AVATARS = ["🐻", "🦊", "🐰", "🐼", "🐨", "🐯", "🦁", "🐵", "🐶", "🐱", "🐸", "🦄"];
 
 // Relativ URL — Next.js proxyer /api/* og /auth/* videre til backend (se
 // rewrites() i next.config.mjs), så nettleseren snakker kun med Next.js sitt
@@ -142,4 +153,14 @@ export const api = {
     }
     return response.json() as Promise<AvailableCalendar[]>;
   },
+
+  getProfile: () => fetch(`${API_BASE_URL}/api/profile`, { credentials: "include" }).then((r) => handle<Profile>(r)),
+
+  updateProfile: (input: { name: string; avatar: string | null }) =>
+    fetch(`${API_BASE_URL}/api/profile`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => handle<Profile>(r)),
 };

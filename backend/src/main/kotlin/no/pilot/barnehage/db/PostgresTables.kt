@@ -24,6 +24,7 @@ object ParentsTable : Table("parents") {
     val googleSub = text("google_sub").uniqueIndex()
     val email = text("email")
     val name = text("name")
+    val avatar = text("avatar").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }

@@ -23,24 +23,37 @@ import { Logo } from "./Logo";
  */
 export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   const who = initialWho;
-  const [showAccountModal, setShowAccountModal] = useState(false);
-  const dialogRef = useRef<HTMLDivElement>(null);
+  const [showAccountMenu, setShowAccountMenu] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
+  const buttonRef = useRef<HTMLButtonElement>(null);
 
   async function handleLogout() {
     await api.logout();
     window.location.href = "/";
   }
 
-  // Lukk med Escape mens modalen er åpen.
+  // Lukk ved Escape eller klikk utenfor mens menyen er åpen — samme mønster
+  // som den tidligere kontomodalen, bare tilpasset en nedtrekksmeny i stedet.
   useEffect(() => {
-    if (!showAccountModal) return;
+    if (!showAccountMenu) return;
     function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setShowAccountModal(false);
+      if (e.key === "Escape") {
+        setShowAccountMenu(false);
+        buttonRef.current?.focus();
+      }
+    }
+    function onClickOutside(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node) && e.target !== buttonRef.current) {
+        setShowAccountMenu(false);
+      }
     }
     document.addEventListener("keydown", onKeyDown);
-    dialogRef.current?.focus();
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [showAccountModal]);
+    document.addEventListener("mousedown", onClickOutside);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("mousedown", onClickOutside);
+    };
+  }, [showAccountMenu]);
 
   return (
     <nav className="topnav">
@@ -50,14 +63,28 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
           Hvem henter?
         </Link>
         {who.loggedIn ? (
-          <button
-            type="button"
-            className="topnav-username"
-            onClick={() => setShowAccountModal(true)}
-            aria-haspopup="dialog"
-          >
-            {who.name ?? "deg"}
-          </button>
+          <div className="account-menu">
+            <button
+              type="button"
+              className="topnav-username"
+              onClick={() => setShowAccountMenu((v) => !v)}
+              aria-haspopup="menu"
+              aria-expanded={showAccountMenu}
+              ref={buttonRef}
+            >
+              {who.avatar && <span aria-hidden="true">{who.avatar}</span>} {who.name ?? "deg"}
+            </button>
+            {showAccountMenu && (
+              <div className="account-dropdown" role="menu" ref={menuRef}>
+                <Link href="/profil" role="menuitem" onClick={() => setShowAccountMenu(false)}>
+                  Profil
+                </Link>
+                <button type="button" role="menuitem" onClick={handleLogout}>
+                  Logg ut
+                </button>
+              </div>
+            )}
+          </div>
         ) : (
           <a href={api.loginUrl()}>Logg inn</a>
         )}
@@ -84,36 +111,6 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
           </>
         )}
       </span>
-
-      {showAccountModal && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => {
-            // Lukk kun hvis klikket traff selve overlayet (bakgrunnen),
-            // ikke innholdet i dialogboksen.
-            if (e.target === e.currentTarget) setShowAccountModal(false);
-          }}
-        >
-          <div
-            className="modal-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Kontovalg"
-            ref={dialogRef}
-            tabIndex={-1}
-          >
-            <p className="modal-dialog-name">{who.name ?? "deg"}</p>
-            <button onClick={handleLogout}>Logg ut</button>
-            <button
-              type="button"
-              className="modal-dialog-close"
-              onClick={() => setShowAccountModal(false)}
-            >
-              Avbryt
-            </button>
-          </div>
-        </div>
-      )}
     </nav>
   );
 }

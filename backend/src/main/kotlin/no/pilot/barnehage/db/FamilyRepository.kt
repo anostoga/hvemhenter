@@ -8,7 +8,7 @@ import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
 data class FamilyRecord(val id: UUID, val sharedCalendarId: String, val inviteCode: String?)
-data class ParentRecord(val id: UUID, val familyId: UUID, val googleSub: String, val email: String, val name: String)
+data class ParentRecord(val id: UUID, val familyId: UUID, val googleSub: String, val email: String, val name: String, val avatar: String? = null)
 
 /**
  * Oppslag/oppretting av familier og foreldre. Brukes av JoinRoutes (familieopprettelse
@@ -139,12 +139,22 @@ class FamilyRepository(private val database: Database) {
         ParentRecord(parentId, family.id, googleSub, email, name)
     }
 
+    /** Oppdaterer visningsnavn og/eller avatar for den innloggede brukeren selv
+     * (se ProfileRoutes) — aldri kallbart for andre parentId enn ens egen sesjon. */
+    fun updateProfile(parentId: UUID, name: String, avatar: String?) = transaction(database) {
+        ParentsTable.update({ ParentsTable.id eq parentId }) {
+            it[ParentsTable.name] = name
+            it[ParentsTable.avatar] = avatar
+        }
+    }
+
     private fun org.jetbrains.exposed.sql.ResultRow.toParentRecord() = ParentRecord(
         id = this[ParentsTable.id],
         familyId = this[ParentsTable.familyId],
         googleSub = this[ParentsTable.googleSub],
         email = this[ParentsTable.email],
         name = this[ParentsTable.name],
+        avatar = this[ParentsTable.avatar],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

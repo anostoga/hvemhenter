@@ -14,6 +14,8 @@ enum class AssignmentSource { AUTO, MANUAL }
 data class Parent(
     val id: String,
     val name: String,
+    /** Emoji-avatar valgt av brukeren selv på /profil, eller null hvis ikke satt. */
+    val avatar: String? = null,
     /** Om forelderen har koblet til Google Kalender (dvs. har en gyldig/fornybar token lagret). */
     val connected: Boolean = false,
 )

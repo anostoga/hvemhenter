@@ -107,6 +107,46 @@ select {
   text-decoration: underline;
 }
 
+.account-menu {
+  position: relative;
+}
+
+.account-dropdown {
+  position: absolute;
+  top: calc(100% + 0.4rem);
+  right: 0;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  min-width: 160px;
+  overflow: hidden;
+  z-index: 100;
+}
+
+.account-dropdown a,
+.account-dropdown button {
+  padding: 0.65rem 1rem;
+  text-align: left;
+  border: none;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.account-dropdown a:hover,
+.account-dropdown button:hover {
+  background: #f2f2f2;
+}
+
+.account-dropdown button {
+  border-top: 1px solid #eee;
+  margin-top: auto;
+}
+
 .modal-overlay {
   position: fixed;
   inset: 0;
@@ -123,21 +163,48 @@ select {
   border-radius: 8px;
   padding: 1.5rem;
   min-width: 240px;
+  max-width: 90vw;
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
 }
 
-.modal-dialog-name {
-  margin: 0;
-  font-weight: 600;
-}
-
 .modal-dialog-close {
+  align-self: flex-end;
   background: none;
   border: none;
   color: #555;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.5rem;
+}
+
+.avatar-grid button {
+  font-size: 1.75rem;
+  line-height: 1;
+  padding: 0.6rem;
+  border-radius: 8px;
+  border: 2px solid transparent;
+  background: #f7f7f7;
+  cursor: pointer;
+}
+
+.avatar-grid button:hover {
+  background: #eee;
+}
+
+.avatar-grid button[aria-pressed="true"] {
+  border-color: #146c6b;
+  background: #e4f2f1;
+}
+
+.profile-avatar-preview {
+  font-size: 2rem;
+  line-height: 1;
 }
 
 .week-calendar {

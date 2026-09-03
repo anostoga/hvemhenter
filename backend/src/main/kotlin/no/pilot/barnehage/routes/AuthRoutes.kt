@@ -33,7 +33,7 @@ data class ErrorResponse(val error: String)
  * og dermed tvinge frem en redirect). Navnet her er brukerens eget, hentet fra databasen
  * via parentId i sesjonen — IKKE lagret i selve cookien (se UserSession/SessionAuth.kt). */
 @Serializable
-data class WhoAmIResponse(val loggedIn: Boolean, val name: String? = null)
+data class WhoAmIResponse(val loggedIn: Boolean, val name: String? = null, val avatar: String? = null)
 
 /**
  * Offentlige ruter som må fungere for BÅDE innloggede og uinnloggede uten å svare 401,
@@ -51,7 +51,7 @@ fun Route.registerWhoAmIAndLogout(familyRepository: FamilyRepository) {
             return@get
         }
         val parent = familyRepository.findParent(UUID.fromString(session.parentId))
-        call.respond(HttpStatusCode.OK, WhoAmIResponse(loggedIn = true, name = parent?.name))
+        call.respond(HttpStatusCode.OK, WhoAmIResponse(loggedIn = true, name = parent?.name, avatar = parent?.avatar))
     }
 
     // Å logge ut når man allerede er logget ut skal bare være en no-op, ikke en feil.
