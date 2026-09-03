@@ -5,11 +5,16 @@ package no.pilot.barnehage.domain
  * (levering/henting) en gitt dato.
  *
  * Strategi:
- * 1. Rettferdighet: velg forelderen med færrest historiske tildelinger av denne typen.
- * 2. Uavgjort: alternér basert på hvem som ble tildelt sist (round-robin).
- * 3. Ledighet: hvis den foretrukne forelderen har en kalenderkonflikt i det aktuelle
+ * 1. Samme dag: hvis den andre oppgaven (levering/henting) samme dato allerede
+ *    er tildelt en forelder, foreslå den ANDRE forelderen for denne oppgaven —
+ *    slik at levering og henting samme dag fordeles på begge foreldre, i
+ *    stedet for at én forelder gjør begge oppgavene én dag og den andre gjør
+ *    begge oppgavene neste dag.
+ * 2. Rettferdighet: ellers, velg forelderen med færrest historiske tildelinger av denne typen.
+ * 3. Uavgjort: alternér basert på hvem som ble tildelt sist (round-robin).
+ * 4. Ledighet: hvis den foretrukne forelderen har en kalenderkonflikt i det aktuelle
  *    tidsrommet og den andre forelderen er ledig, foreslå den ledige i stedet.
- * 4. Hvis begge har konflikt, foreslå likevel den mest rettferdige, men marker `conflict = true`
+ * 5. Hvis begge har konflikt, foreslå likevel den mest rettferdige, men marker `conflict = true`
  *    slik at en forelder må bekrefte/overstyre manuelt.
  */
 class AssignmentService {
@@ -24,6 +29,33 @@ class AssignmentService {
         windowEnd: Long? = null,
     ): Suggestion {
         require(parents.size >= 2) { "Trenger minst to foreldre for å foreslå fordeling" }
+
+        // Er den andre oppgaven (levering/henting) samme dato allerede tildelt?
+        // I så fall prioriteres det å fordele dagens to oppgaver på begge foreldre
+        // (én leverer, én henter) fremfor den generelle rettferdighets-tellingen.
+        val sameDayOtherType = history.lastOrNull { it.date == date && it.type != type }
+        if (sameDayOtherType != null) {
+            val complement = parents.firstOrNull { it.id != sameDayOtherType.parentId }
+            val otherParentName = parents.firstOrNull { it.id == sameDayOtherType.parentId }?.name ?: "den andre forelderen"
+            if (complement != null) {
+                val complementBusy = if (windowStart != null && windowEnd != null) {
+                    (busyByParent[complement.id] ?: emptyList()).any { it.startEpochMillis < windowEnd && it.endEpochMillis > windowStart }
+                } else {
+                    false
+                }
+                if (!complementBusy) {
+                    return Suggestion(
+                        date = date,
+                        type = type,
+                        suggestedParentId = complement.id,
+                        reason = "${complement.name}: fordeler levering/henting samme dag ($otherParentName har allerede ${sameDayOtherType.type.name.lowercase()} denne dagen)",
+                    )
+                }
+                // Den som skulle utfylt dagen har kalenderkonflikt — fall gjennom til
+                // vanlig rettferdighets-/ledighetslogikk under i stedet for å tvinge
+                // frem et forslag som uansett må overstyres manuelt.
+            }
+        }
 
         val relevant = history.filter { it.type == type }
         val countByParent = parents.associate { p -> p.id to relevant.count { it.parentId == p.id } }

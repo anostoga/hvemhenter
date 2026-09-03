@@ -43,6 +43,19 @@ button:hover {
   background: #f0f0f0;
 }
 
+/* Uten dette ser en deaktivert knapp helt lik ut som en aktiv (samme farger,
+   fortsatt "cursor: pointer") — brukeren kan da ikke se at klikk ikke gjør
+   noe (f.eks. "Nullstill uken" rett etter at uken allerede er nullstilt). */
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  background: #f0f0f0;
+}
+
+button:disabled:hover {
+  background: #f0f0f0;
+}
+
 input,
 select {
   font-size: 16px;
@@ -210,13 +223,31 @@ select {
 .week-calendar {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: 1.25rem;
   overflow-x: auto;
+}
+
+.week-calendar-week-header {
+  margin-bottom: 0.4rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.week-calendar-reset-button {
+  background: transparent;
+  border: 1px solid #b3413e;
+  color: #b3413e;
+}
+
+.week-calendar-reset-button:hover:not(:disabled) {
+  background: #fdecea;
 }
 
 .week-calendar-week {
   display: flex;
   gap: 0.5rem;
+  align-items: stretch;
 }
 
 .week-calendar-day {
@@ -245,33 +276,29 @@ select {
   padding: 0.4rem;
   border-radius: 4px;
   font-size: 0.9rem;
-}
-
-.week-slot p {
-  margin: 0 0 0.3rem;
-}
-
-.week-slot button {
-  padding: 0.2rem 0.5rem;
-  font-size: 0.85rem;
-  margin: 0.15rem 0.15rem 0 0;
+  background: #fafafa;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
 }
 
 .week-slot-label {
+  margin: 0;
   font-weight: 600;
   color: #555;
 }
 
-.week-slot-empty {
-  background: #fafafa;
+.week-slot-select {
+  width: 100%;
+  min-height: 34px;
+  font-size: 0.85rem;
 }
 
-.week-slot-filled {
-  background: #f0f8f8;
-}
-
-.week-slot-active {
-  background: #fff8e1;
+.week-slot-meta {
+  margin: 0;
+  font-size: 0.75rem;
+  color: #777;
+  min-height: 1em;
 }
 
 .family-illustration-wrapper svg {
@@ -308,6 +335,23 @@ select {
 
   .week-calendar-day {
     min-width: 0;
+  }
+
+  /* Passerte dager tar unødvendig plass på små skjermer (må scrolles forbi
+     for å nå dagens dato) — skjules helt her. På større skjermer vises de
+     fortsatt (kun med deaktiverte kontroller), siden radene der uansett
+     viser alle 5 dager side ved side og passerte dager ikke koster ekstra
+     scrolling. */
+  .week-calendar-day-past {
+    display: none;
+  }
+
+  /* Hvis HELE uken er passert (kun mulig for inneværende uke, siden neste
+     uke aldri kan være passert), er alle dagene skjult over — da skjules
+     også uke-blokken (inkl. "Generer forslag"-knappen) slik at det ikke
+     blir en tom, forvirrende seksjon øverst på siden. */
+  .week-calendar-week-block-past {
+    display: none;
   }
 }
 

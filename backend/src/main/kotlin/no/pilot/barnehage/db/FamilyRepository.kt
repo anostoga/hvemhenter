@@ -8,7 +8,16 @@ import org.jetbrains.exposed.sql.update
 import java.util.UUID
 
 data class FamilyRecord(val id: UUID, val sharedCalendarId: String, val inviteCode: String?)
-data class ParentRecord(val id: UUID, val familyId: UUID, val googleSub: String, val email: String, val name: String, val avatar: String? = null)
+data class ParentRecord(
+    val id: UUID,
+    val familyId: UUID,
+    val googleSub: String,
+    val email: String,
+    val name: String,
+    val avatar: String? = null,
+    /** Forelderens egen valgte kalender for skriving av tildelinger (se /api/calendars/mine). */
+    val calendarId: String? = null,
+)
 
 /**
  * Oppslag/oppretting av familier og foreldre. Brukes av JoinRoutes (familieopprettelse
@@ -50,13 +59,6 @@ class FamilyRepository(private val database: Database) {
     /** Alle foreldre i familien — brukt av /api/parents og forslagslogikken. */
     fun findParents(familyId: UUID): List<ParentRecord> = transaction(database) {
         ParentsTable.selectAll().where { ParentsTable.familyId eq familyId }.map { it.toParentRecord() }
-    }
-
-    /** Oppdaterer familiens delte kalender-ID (satt av en forelder etter innlogging). */
-    fun updateSharedCalendarId(familyId: UUID, sharedCalendarId: String) = transaction(database) {
-        FamiliesTable.update({ FamiliesTable.id eq familyId }) {
-            it[FamiliesTable.sharedCalendarId] = sharedCalendarId
-        }
     }
 
     /** Finner en familie som fortsatt har plass (< 2 foreldre) opprettet via
@@ -148,6 +150,14 @@ class FamilyRepository(private val database: Database) {
         }
     }
 
+    /** Setter forelderens egen valgte kalender-ID (se CalendarRoutes) — samme
+     * "kun egen rad"-mønster som `updateProfile`, `parentId` er alltid fra sesjonen. */
+    fun updateParentCalendarId(parentId: UUID, calendarId: String) = transaction(database) {
+        ParentsTable.update({ ParentsTable.id eq parentId }) {
+            it[ParentsTable.calendarId] = calendarId
+        }
+    }
+
     private fun org.jetbrains.exposed.sql.ResultRow.toParentRecord() = ParentRecord(
         id = this[ParentsTable.id],
         familyId = this[ParentsTable.familyId],
@@ -155,6 +165,7 @@ class FamilyRepository(private val database: Database) {
         email = this[ParentsTable.email],
         name = this[ParentsTable.name],
         avatar = this[ParentsTable.avatar],
+        calendarId = this[ParentsTable.calendarId],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

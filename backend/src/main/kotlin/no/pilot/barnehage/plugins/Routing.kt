@@ -18,6 +18,7 @@ import no.pilot.barnehage.google.GoogleOAuthClient
 import no.pilot.barnehage.google.GoogleOAuthConfig
 import no.pilot.barnehage.routes.assignmentRoutes
 import no.pilot.barnehage.routes.authRoutes
+import no.pilot.barnehage.routes.calendarRoutes
 import no.pilot.barnehage.routes.familyRoutes
 import no.pilot.barnehage.routes.joinRoutes
 import no.pilot.barnehage.routes.profileRoutes
@@ -58,7 +59,8 @@ fun Application.configureRouting(database: Database) {
 
         authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository)
         joinRoutes(oauthClient, stateSigner, familyRepository)
-        familyRoutes(familyRepository, accessTokenProvider, calendarService)
+        familyRoutes(familyRepository)
+        calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)
     }

@@ -72,6 +72,37 @@ class AssignmentServiceTest {
     }
 
     @Test
+    fun `foreslaar den andre forelderen naar levering samme dag allerede er tildelt`() {
+        val history = listOf(
+            Assignment(id = "1", date = "2026-08-21", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
+        )
+
+        val suggestion = service.suggest(parents, history, "2026-08-21", AssignmentType.PICKUP)
+
+        assertEquals(far.id, suggestion.suggestedParentId)
+        assertFalse(suggestion.conflict)
+    }
+
+    @Test
+    fun `faller tilbake til rettferdighet naar komplementaer forelder har kalenderkonflikt samme dag`() {
+        val history = listOf(
+            Assignment(id = "1", date = "2026-08-21", type = AssignmentType.DROPOFF, parentId = mor.id, source = AssignmentSource.AUTO),
+        )
+        val windowStart = 1_000L
+        val windowEnd = 2_000L
+        // Komplementet (far) har konflikt -> fall gjennom til vanlig rettferdighets-/
+        // ledighetslogikk, som her (uten annen historikk for PICKUP) velger mor (parents.first()).
+        val busyByParent = mapOf(far.id to listOf(BusyPeriod(windowStart, windowEnd)))
+
+        val suggestion = service.suggest(
+            parents, history, "2026-08-21", AssignmentType.PICKUP,
+            busyByParent = busyByParent, windowStart = windowStart, windowEnd = windowEnd,
+        )
+
+        assertEquals(mor.id, suggestion.suggestedParentId)
+    }
+
+    @Test
     fun `krever minst to foreldre`() {
         var threw = false
         try {

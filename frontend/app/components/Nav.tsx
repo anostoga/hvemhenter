@@ -79,6 +79,9 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
                 <Link href="/profil" role="menuitem" onClick={() => setShowAccountMenu(false)}>
                   Profil
                 </Link>
+                <Link href="/innstillinger" role="menuitem" onClick={() => setShowAccountMenu(false)}>
+                  Innstillinger
+                </Link>
                 <button type="button" role="menuitem" onClick={handleLogout}>
                   Logg ut
                 </button>
@@ -92,8 +95,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
       <span className="topnav-links">
         {who.loggedIn ? (
           <>
-            <Link href="/innstillinger">Innstillinger</Link>
-            <Link href="/kalender">Kalender</Link>
+            <Link href="/ukeplan">Ukeplan</Link>
             <Link href="/familie">Familie</Link>
           </>
         ) : (

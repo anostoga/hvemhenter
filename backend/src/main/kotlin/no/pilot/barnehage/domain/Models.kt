@@ -18,6 +18,8 @@ data class Parent(
     val avatar: String? = null,
     /** Om forelderen har koblet til Google Kalender (dvs. har en gyldig/fornybar token lagret). */
     val connected: Boolean = false,
+    /** Forelderens egen valgte kalender (se /api/calendars/mine), eller null hvis ikke satt ennå. */
+    val calendarId: String? = null,
 )
 
 @Serializable

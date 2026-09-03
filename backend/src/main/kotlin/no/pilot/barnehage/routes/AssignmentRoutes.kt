@@ -88,12 +88,10 @@ fun Route.assignmentRoutes(
             val type = call.parameters["type"]?.let { AssignmentType.valueOf(it.uppercase()) }
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("type mangler (DROPOFF|PICKUP)"))
 
-            val family = familyRepository.findFamily(familyId)
-                ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("familie ikke funnet"))
             val parents = effectiveParents(familyRepository, tokenRepository, familyId)
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val history = repo.all().map { it.toApiAssignment() }
-            val busyByParent = fetchBusyPeriods(parents, family.sharedCalendarId, date, calendarService, accessTokenProvider)
+            val busyByParent = fetchBusyPeriods(parents, date, calendarService, accessTokenProvider)
 
             val (startTime, endTime) = defaultWindow(type)
             val (windowStart, windowEnd) = timeWindow(date, startTime, endTime)
@@ -117,8 +115,6 @@ fun Route.assignmentRoutes(
             val parents = familyRepository.findParents(familyId)
             val parent = parents.find { it.id.toString() == request.parentId }
                 ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("ukjent parentId"))
-            val family = familyRepository.findFamily(familyId)
-                ?: return@post call.respond(HttpStatusCode.InternalServerError, ErrorResponse("familie ikke funnet"))
 
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val requestDate = LocalDate.parse(request.date)
@@ -128,22 +124,29 @@ fun Route.assignmentRoutes(
             // i stedet for å prøve å sette inn en ny rad (som ville feilet på constraint-en).
             val existing = repo.findByDateAndType(requestDate, request.type.name)
 
-            if (existing?.googleEventId != null && family.sharedCalendarId.isNotBlank()) {
-                val accessTokenForDelete = accessTokenProvider.getValidAccessToken(parent.id)
-                    ?: parents.firstNotNullOfOrNull { accessTokenProvider.getValidAccessToken(it.id) }
-                if (accessTokenForDelete != null) {
-                    calendarService.deleteEvent(accessTokenForDelete, family.sharedCalendarId, existing.googleEventId)
+            // VIKTIG: den gamle hendelsen ligger i DEN OPPRINNELIG TILDELTE forelderens
+            // kalender, ikke nødvendigvis i den nye forelderens — hvis tildelingen flyttes
+            // fra én forelder til en annen, må slettingen skje mot riktig (gamle) kalender.
+            if (existing?.googleEventId != null) {
+                val oldParent = parents.find { it.id == existing.parentId }
+                val oldCalendarId = oldParent?.calendarId
+                if (!oldCalendarId.isNullOrBlank()) {
+                    val accessTokenForDelete = accessTokenProvider.getValidAccessToken(oldParent.id)
+                    if (accessTokenForDelete != null) {
+                        calendarService.deleteEvent(accessTokenForDelete, oldCalendarId, existing.googleEventId)
+                    }
                 }
             }
 
-            val accessToken = accessTokenProvider.getValidAccessToken(parent.id)
+            val newCalendarId = parent.calendarId
+            val accessToken = if (newCalendarId.isNullOrBlank()) null else accessTokenProvider.getValidAccessToken(parent.id)
             var googleEventId: String? = null
-            if (accessToken != null && family.sharedCalendarId.isNotBlank()) {
+            if (accessToken != null && !newCalendarId.isNullOrBlank()) {
                 val (defaultStart, defaultEnd) = defaultWindow(request.type)
                 val (startIso, endIso) = isoWindow(request.date, request.startTime ?: defaultStart, request.endTime ?: defaultEnd)
                 googleEventId = calendarService.insertEvent(
                     accessToken = accessToken,
-                    calendarId = family.sharedCalendarId,
+                    calendarId = newCalendarId,
                     event = CalendarEventRequest(
                         summary = "${typeLabel(request.type)}: ${parent.name}",
                         start = CalendarEventTime(startIso, ZoneId.systemDefault().id),
@@ -183,12 +186,12 @@ fun Route.assignmentRoutes(
                 ?: return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
 
             if (assignment.googleEventId != null) {
-                val family = familyRepository.findFamily(familyId)
-                if (family != null && family.sharedCalendarId.isNotBlank()) {
-                    val parents = familyRepository.findParents(familyId)
-                    val accessToken = parents.firstNotNullOfOrNull { accessTokenProvider.getValidAccessToken(it.id) }
+                val owningParent = familyRepository.findParents(familyId).find { it.id == assignment.parentId }
+                val calendarId = owningParent?.calendarId
+                if (!calendarId.isNullOrBlank()) {
+                    val accessToken = accessTokenProvider.getValidAccessToken(assignment.parentId)
                     if (accessToken != null) {
-                        calendarService.deleteEvent(accessToken, family.sharedCalendarId, assignment.googleEventId)
+                        calendarService.deleteEvent(accessToken, calendarId, assignment.googleEventId)
                     }
                 }
             }
@@ -217,37 +220,54 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
  */
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
     familyRepository.findParents(familyId).map { parent ->
-        Parent(id = parent.id.toString(), name = parent.name, avatar = parent.avatar, connected = tokenRepository.find(parent.id) != null)
+        Parent(
+            id = parent.id.toString(),
+            name = parent.name,
+            avatar = parent.avatar,
+            connected = tokenRepository.find(parent.id) != null,
+            calendarId = parent.calendarId,
+        )
     }
 
+/**
+ * Henter opptatte perioder PER FORELDER fra forelderens EGEN valgte kalender
+ * (se CalendarRoutes/`/api/calendars/mine`) — ikke lenger fra én kalender delt
+ * av hele familien. En forelder uten valgt kalender, eller uten gyldig
+ * access-token, gir rett og slett ingen opptatte perioder for seg selv (i stedet
+ * for en feil) — konfliktsjekken degraderer da bare til "vi vet ikke", ikke krasj.
+ */
 private suspend fun fetchBusyPeriods(
     parents: List<Parent>,
-    sharedCalendarId: String,
     date: String,
     calendarService: CalendarService,
     accessTokenProvider: AccessTokenProvider,
 ): Map<String, List<BusyPeriod>> {
-    if (sharedCalendarId.isBlank()) return emptyMap()
     val (windowStartIso, windowEndIso) = isoWindow(date, "07:00", "17:30")
 
-    // Kalenderen er delt mellom foreldrene, så vi henter hendelsene én gang (med
-    // hvilken som helst tilkoblet forelders token — begge har lesetilgang til
-    // samme kalender) og fordeler dem etterpå basert på tittel.
-    val accessToken = parents.firstNotNullOfOrNull { accessTokenProvider.getValidAccessToken(UUID.fromString(it.id)) } ?: return emptyMap()
-    val events = calendarService.listEvents(accessToken, sharedCalendarId, windowStartIso, windowEndIso)
-
     return parents.associate { parent ->
-        parent.id to events.mapNotNull { event -> matchParent(event, parent.name) }
+        val calendarId = parent.calendarId
+        val accessToken = if (calendarId.isNullOrBlank()) null else accessTokenProvider.getValidAccessToken(UUID.fromString(parent.id))
+        val busy = if (accessToken == null || calendarId.isNullOrBlank()) {
+            emptyList()
+        } else {
+            calendarService.listEvents(accessToken, calendarId, windowStartIso, windowEndIso).mapNotNull { event ->
+                val start = event.start?.toEpochMillis() ?: return@mapNotNull null
+                val end = event.end?.toEpochMillis() ?: return@mapNotNull null
+                BusyPeriod(start, end)
+            }
+        }
+        parent.id to busy
     }
 }
 
 /**
  * Avgjør om en hendelse tilhører en gitt forelder ved å se om forelderens FORNAVN
- * inngår i hendelsestittelen (case-insensitive). Vi matcher kun på fornavn (ikke
- * hele "Fornavn Etternavn") fordi folk typisk skriver kalendertitler som
- * "Halvor i møte" — et krav om at hele navnet matcher ville gjort at ekte
- * konflikter aldri ble oppdaget. Finnes ikke fornavnet i tittelen, regnes
- * hendelsen som ueid — den brukes ikke i forslagslogikken for noen.
+ * inngår i hendelsestittelen (case-insensitive). Brukt tidligere til å fordele
+ * hendelser fra én delt familiekalender mellom foreldre (se `fetchBusyPeriods`
+ * over, som nå bruker per-forelder-kalendere i stedet og ikke lenger trenger
+ * denne). Beholdt urørt (og fortsatt dekket av
+ * AssignmentRoutesCharacterizationTest) for å unngå å røre en fungerende,
+ * testet funksjon uten grunn.
  */
 internal fun matchParent(event: CalendarEventItem, parentName: String): BusyPeriod? {
     val summary = event.summary ?: return null

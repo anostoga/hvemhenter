@@ -25,6 +25,10 @@ object ParentsTable : Table("parents") {
     val email = text("email")
     val name = text("name")
     val avatar = text("avatar").nullable()
+    /** Google-kalenderen DENNE forelderen selv har valgt (se /api/calendars/mine)
+     * — tildelinger der forelderen er satt opp skrives som hendelser hit, i
+     * stedet for til én delt familiekalender (se V3-migrasjonen). */
+    val calendarId = text("calendar_id").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }

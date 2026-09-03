@@ -8,6 +8,7 @@ export interface Parent {
   name: string;
   avatar: string | null;
   connected: boolean;
+  calendarId: string | null;
 }
 
 export interface Assignment {
@@ -29,10 +30,13 @@ export interface Suggestion {
 
 export interface Family {
   id: string;
-  sharedCalendarId: string;
   // null når familien allerede har 2 foreldre (koden er engangsbruk og
   // invalideres server-side når forelder #2 blir med, se backend FamilyRepository).
   inviteCode: string | null;
+}
+
+export interface MyCalendar {
+  calendarId: string | null;
 }
 
 export interface AvailableCalendar {
@@ -127,19 +131,24 @@ export const api = {
 
   getFamily: () => fetch(`${API_BASE_URL}/api/family`, { credentials: "include" }).then((r) => handle<Family>(r)),
 
-  updateSharedCalendar: (sharedCalendarId: string) =>
-    fetch(`${API_BASE_URL}/api/family/shared-calendar`, {
+  // Kalenderen er nå knyttet til DEN INNLOGGEDE BRUKEREN selv, ikke hele
+  // familien — tildelinger denne brukeren er satt opp med skrives dit.
+  getMyCalendar: () =>
+    fetch(`${API_BASE_URL}/api/calendars/mine`, { credentials: "include" }).then((r) => handle<MyCalendar>(r)),
+
+  updateMyCalendar: (calendarId: string) =>
+    fetch(`${API_BASE_URL}/api/calendars/mine`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ sharedCalendarId }),
-    }).then((r) => handle<Family>(r)),
+      body: JSON.stringify({ calendarId }),
+    }).then((r) => handle<MyCalendar>(r)),
 
   // Returnerer `null` (i stedet for å kaste) når brukeren ikke har koblet til
   // Google ennå (409) — det er en forventet tilstand UI-et skal falle tilbake
   // fra til fritekst-input, ikke en feil å vise som en generell feilmelding.
   getAvailableCalendars: async (): Promise<AvailableCalendar[] | null> => {
-    const response = await fetch(`${API_BASE_URL}/api/family/available-calendars`, { credentials: "include" });
+    const response = await fetch(`${API_BASE_URL}/api/calendars/available`, { credentials: "include" });
     if (response.status === 401) {
       window.location.href = "/";
       throw new Error("ikke innlogget");
