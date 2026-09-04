@@ -1,6 +1,7 @@
 import { Assignment, AssignmentType, Parent } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { WeekBlockSkeleton } from "@/app/components/WeekCalendarSkeleton";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -11,6 +12,13 @@ interface WeekCalendarProps {
   assignmentsByDay: Map<string, CellAssignments>;
   parents: Parent[];
   loading: boolean;
+  // Index (0 eller 1) for uken en hel-uke-handling (generer forslag/nullstill
+  // uken) pågår for, eller `null` når ingen slik handling pågår — se
+  // KalenderClient.tsx. Kun DENNE uken vises som skjelett (`WeekBlockSkeleton`)
+  // mens den andre uken fortsatt vises normalt, i motsetning til den
+  // opprinnelige Suspense-fallbacken (`WeekCalendarSkeleton`) som
+  // skjelettifiserer begge ukene samtidig ved førstelasting.
+  loadingWeekIndex?: number | null;
   onGenerateWeekPlan: (weekDays: string[]) => void;
   onResetWeekPlan: (weekDays: string[]) => void;
   onChangeAssignment: (date: string, type: AssignmentType, parentId: string) => void;
@@ -51,6 +59,7 @@ export function WeekCalendar({
   assignmentsByDay,
   parents,
   loading,
+  loadingWeekIndex = null,
   onGenerateWeekPlan,
   onResetWeekPlan,
   onChangeAssignment,
@@ -115,36 +124,42 @@ export function WeekCalendar({
           return !cell?.DROPOFF && !cell?.PICKUP;
         });
         return (
-        <div className={weekIsPast ? "hidden sm:block" : undefined} key={i}>
-          <div className="mb-1.5 flex flex-wrap gap-2">
-            <Button
-              disabled={loading || weekIsPast || weekFullyAssigned}
-              onClick={() => onGenerateWeekPlan(week)}
-            >
-              Generer forslag for uken
-            </Button>
-            <Button
-              variant="outline"
-              className="border-destructive text-destructive hover:bg-destructive/10"
-              disabled={loading || weekIsPast || weekHasNoAssignments}
-              onClick={() => onResetWeekPlan(week)}
-            >
-              Nullstill uken
-            </Button>
+          <div className={weekIsPast ? "hidden sm:block" : undefined} key={i}>
+            {i === loadingWeekIndex ? (
+              <WeekBlockSkeleton />
+            ) : (
+              <>
+                <div className="mb-1.5 flex flex-wrap gap-2">
+                  <Button
+                    disabled={loading || weekIsPast || weekFullyAssigned}
+                    onClick={() => onGenerateWeekPlan(week)}
+                  >
+                    Generer forslag for uken
+                  </Button>
+                  <Button
+                    variant="outline"
+                    className="border-destructive text-destructive hover:bg-destructive/10"
+                    disabled={loading || weekIsPast || weekHasNoAssignments}
+                    onClick={() => onResetWeekPlan(week)}
+                  >
+                    Nullstill uken
+                  </Button>
+                </div>
+                <div className="flex flex-col items-stretch gap-2 sm:flex-row">
+                  {week.map((date) => (
+                    <div
+                      className={`flex flex-1 flex-col gap-1.5 rounded-md border p-2 ${date === today ? "border-primary bg-accent" : "border-border"} ${isPast(date) ? "hidden sm:flex sm:min-w-0" : "sm:min-w-[110px]"}`}
+                      key={date}
+                    >
+                      <p className="m-0 font-semibold capitalize">{dayLabel(date)}</p>
+                      {renderSlot(date, "DROPOFF")}
+                      {renderSlot(date, "PICKUP")}
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
-          <div className="flex flex-col items-stretch gap-2 sm:flex-row">
-            {week.map((date) => (
-              <div
-                className={`flex flex-1 flex-col gap-1.5 rounded-md border p-2 ${date === today ? "border-primary bg-accent" : "border-border"} ${isPast(date) ? "hidden sm:flex sm:min-w-0" : "sm:min-w-[110px]"}`}
-                key={date}
-              >
-                <p className="m-0 font-semibold capitalize">{dayLabel(date)}</p>
-                {renderSlot(date, "DROPOFF")}
-                {renderSlot(date, "PICKUP")}
-              </div>
-            ))}
-          </div>
-        </div>
         );
       })}
     </div>

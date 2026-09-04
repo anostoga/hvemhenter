@@ -1,114 +1,48 @@
-"use client";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getServerProfile, UnauthorizedError } from "@/lib/server-api";
+import { ProfilSkeleton } from "@/app/components/ProfilSkeleton";
+import ProfilClient from "./ProfilClient";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { api, AVATARS } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+export const metadata = {
+  title: "Profil — Barnehage-planlegger",
+};
 
-export default function ProfilPage() {
-  const router = useRouter();
-  const [name, setName] = useState("");
-  const [avatar, setAvatar] = useState<string | null>(null);
-  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    api
-      .getProfile()
-      .then((p) => {
-        setName(p.name);
-        setAvatar(p.avatar);
-      })
-      .catch((e) => setError(String(e)));
-  }, []);
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaved(false);
-    setSaving(true);
-    try {
-      await api.updateProfile({ name, avatar });
-      setSaved(true);
-      // Nav-navnet/avataren hentes server-side i layout.tsx (se getServerWhoAmI) —
-      // router.refresh() kjører serverkomponentene på nytt uten en full
-      // sideinnlasting, slik at toppmenyen viser det nye navnet/avataren med en gang.
-      router.refresh();
-    } catch (e) {
-      setError(String(e));
-    } finally {
-      setSaving(false);
+/**
+ * Egen async komponent for SSR-hentingen — se app/ukeplan/page.tsx sin
+ * `KalenderData` for hvorfor dette må ligge i en egen komponent for at
+ * `<Suspense>` skal ha noe å vente på.
+ */
+async function ProfilData() {
+  try {
+    const profile = await getServerProfile();
+    return <ProfilClient initialProfile={profile} />;
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      redirect("/");
     }
+    // Backend nede/annen feil under SSR: fall tilbake til tomt skjema i
+    // stedet for å la hele siden feile (samme fail-soft-filosofi som
+    // getServerWhoAmI/de andre SSR-sidene).
+    return <ProfilClient initialProfile={{ name: "", avatar: null }} />;
   }
+}
 
+/**
+ * Skjema-/mutasjonslogikken ligger nå i `ProfilClient` (client-komponent) —
+ * denne siden er en Server Component hvis eneste jobb er å hente det
+ * innloggede navnet/avataren FØR HTML-en sendes (se lib/server-api.ts), og
+ * strømme dette inn via en ekte `<Suspense>`-grense mens `<ProfilSkeleton>`
+ * vises som fallback. Selve lagringen skjer fortsatt client-side i
+ * `ProfilClient`, akkurat som før.
+ */
+export default function ProfilPage() {
   return (
     <main>
       <h1>Profil</h1>
-      {error && <p className="text-destructive">{error}</p>}
-      {saved && <p role="status">Lagret!</p>}
-
-      <form onSubmit={handleSave}>
-        <Label htmlFor="displayName">Visningsnavn</Label>
-        <br />
-        <Input
-          id="displayName"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <br />
-        <br />
-
-        <span id="avatarLabel">Avatar</span>
-        <br />
-        <span className="text-3xl leading-none" aria-labelledby="avatarLabel">
-          {avatar ?? "—"}
-        </span>{" "}
-        <Button type="button" variant="outline" onClick={() => setShowAvatarPicker(true)}>
-          Velg avatar
-        </Button>
-        <br />
-        <br />
-
-        <Button type="submit" disabled={saving || !name.trim()}>
-          Lagre
-        </Button>
-      </form>
-
-      <Dialog open={showAvatarPicker} onOpenChange={setShowAvatarPicker}>
-        <DialogContent aria-label="Velg avatar">
-          <DialogHeader>
-            <DialogTitle>Velg avatar</DialogTitle>
-          </DialogHeader>
-          <div className="grid grid-cols-4 gap-2">
-            {AVATARS.map((a) => (
-              <button
-                key={a}
-                type="button"
-                aria-pressed={avatar === a}
-                aria-label={`Velg avatar ${a}`}
-                onClick={() => {
-                  setAvatar(a);
-                  setShowAvatarPicker(false);
-                }}
-                className="cursor-pointer rounded-lg border-2 border-transparent bg-muted p-2.5 text-2xl leading-none hover:bg-border aria-pressed:border-primary aria-pressed:bg-accent"
-              >
-                {a}
-              </button>
-            ))}
-          </div>
-        </DialogContent>
-      </Dialog>
+      <Suspense fallback={<ProfilSkeleton />}>
+        <ProfilData />
+      </Suspense>
     </main>
   );
 }

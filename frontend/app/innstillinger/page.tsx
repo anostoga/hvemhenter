@@ -1,165 +1,55 @@
-"use client";
+import { Suspense } from "react";
+import { redirect } from "next/navigation";
+import { getServerAvailableCalendars, getServerMyCalendar, UnauthorizedError } from "@/lib/server-api";
+import type { AvailableCalendar, MyCalendar } from "@/lib/api";
+import { InnstillingerSkeleton } from "@/app/components/InnstillingerSkeleton";
+import InnstillingerClient from "./InnstillingerClient";
 
-import { useEffect, useState } from "react";
-import { api, AvailableCalendar, MyCalendar } from "@/lib/api";
-import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+export const metadata = {
+  title: "Innstillinger — Barnehage-planlegger",
+};
 
-export default function InnstillingerPage() {
-  // Kun den innloggede brukerens EGEN tilkoblingsstatus/kalender vises her —
-  // ikke lenger en familie-delt kalender (se AssignmentRoutes.kt for hvorfor:
-  // hver forelder skriver nå sine egne tildelinger til sin egen kalender).
-  const [connected, setConnected] = useState<boolean | null>(null);
-  const [myCalendar, setMyCalendar] = useState<MyCalendar | null>(null);
-  const [calendarInput, setCalendarInput] = useState("");
-  // Kalenderen tilgjengelighet (opptatte tider) hentes fra. Kun i bruk når
-  // `sameCalendarForBoth` er false — se checkboxen under.
-  const [availabilityCalendarInput, setAvailabilityCalendarInput] = useState("");
-  // Avkrysningsboksen: bruk SAMME kalender (calendarInput) til både skriving
-  // av tildelinger og henting av tilgjengelighet. Da sendes
-  // availabilityCalendarId = null til backend, som faller tilbake til
-  // calendarId (se CalendarRoutes.kt).
-  const [sameCalendarForBoth, setSameCalendarForBoth] = useState(true);
-  // null = ikke tilkoblet Google ennå (eller henting feilet) — da kan ingen
-  // kalender velges i det hele tatt (se meldingen i JSX under). Tom liste =
-  // tilkoblet, men ingen kalendere funnet (uvanlig, samme fallback som null).
-  const [availableCalendars, setAvailableCalendars] = useState<AvailableCalendar[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [saved, setSaved] = useState(false);
-
-  useEffect(() => {
-    api
-      .getMyCalendar()
-      .then((c) => {
-        setMyCalendar(c);
-        setCalendarInput(c.calendarId ?? "");
-        setAvailabilityCalendarInput(c.availabilityCalendarId ?? "");
-        setSameCalendarForBoth(c.availabilityCalendarId == null);
-      })
-      .catch((e) => setError(String(e)));
-    // Egen catch (ikke satt til den globale `error`) — 409 (ikke tilkoblet ennå)
-    // er en forventet tilstand, ikke en feil å vise brukeren som en rød advarsel.
-    api
-      .getAvailableCalendars()
-      .then((calendars) => {
-        setAvailableCalendars(calendars);
-        setConnected(calendars !== null);
-      })
-      .catch(() => {
-        setAvailableCalendars(null);
-        setConnected(false);
-      });
-  }, []);
-
-  async function saveMyCalendar(e: React.FormEvent) {
-    e.preventDefault();
-    setError(null);
-    setSaved(false);
-    try {
-      const availabilityCalendarId = sameCalendarForBoth ? null : availabilityCalendarInput || null;
-      const c = await api.updateMyCalendar(calendarInput, availabilityCalendarId);
-      setMyCalendar(c);
-      setSaved(true);
-    } catch (e) {
-      setError(String(e));
+/**
+ * Egen async komponent for SSR-hentingen — se app/ukeplan/page.tsx sin
+ * `KalenderData` for hvorfor dette må ligge i en egen komponent for at
+ * `<Suspense>` skal ha noe å vente på. `getServerAvailableCalendars` kaster
+ * ikke ved 409 (ikke tilkoblet Google ennå), kun ved 401/andre feil — se
+ * lib/server-api.ts.
+ */
+async function InnstillingerData() {
+  let myCalendar: MyCalendar;
+  let availableCalendars: AvailableCalendar[] | null;
+  try {
+    [myCalendar, availableCalendars] = await Promise.all([getServerMyCalendar(), getServerAvailableCalendars()]);
+  } catch (e) {
+    if (e instanceof UnauthorizedError) {
+      redirect("/");
     }
+    // Backend nede/annen feil under SSR: fall tilbake til tomt skjema i
+    // stedet for å la hele siden feile (samme fail-soft-filosofi som
+    // getServerWhoAmI/de andre SSR-sidene).
+    myCalendar = { calendarId: null, availabilityCalendarId: null };
+    availableCalendars = null;
   }
+  return <InnstillingerClient initialMyCalendar={myCalendar} initialAvailableCalendars={availableCalendars} />;
+}
 
-  // Kun mulig å velge kalender fra en liste hentet fra Google — ALDRI ved å
-  // skrive inn en vilkårlig kalender-ID manuelt. Det krever at brukeren har
-  // koblet til Google-kalenderen sin (se seksjonen over), og at det finnes
-  // minst én kalender å velge mellom.
-  const hasCalendars = availableCalendars !== null && availableCalendars.length > 0;
-
+/**
+ * Skjema-/mutasjonslogikken ligger nå i `InnstillingerClient`
+ * (client-komponent) — denne siden er en Server Component hvis eneste jobb
+ * er å hente brukerens kalendertilkobling + tilgjengelige kalendere FØR
+ * HTML-en sendes (se lib/server-api.ts), og strømme dette inn via en ekte
+ * `<Suspense>`-grense mens `<InnstillingerSkeleton>` vises som fallback.
+ * Selve lagringen skjer fortsatt client-side i `InnstillingerClient`,
+ * akkurat som før.
+ */
+export default function InnstillingerPage() {
   return (
     <main>
       <h1>Innstillinger</h1>
-      {error && <p className="text-destructive">{error}</p>}
-
-      {connected === false && (
-        <section>
-          <h2>Koble til Google Kalender</h2>
-          <p>
-            <a href={api.authStartUrl()}>Koble til/forny min kalendertilgang</a>
-          </p>
-          <p>Ikke tilkoblet ennå</p>
-        </section>
-      )}
-
-      <section>
-        <h2>Min kalender</h2>
-        {myCalendar && !myCalendar.calendarId && (
-          <p role="alert">
-            ⚠️ Ingen kalender er valgt ennå — dine tildelinger opprettes IKKE som kalenderhendelser
-            før du har lagret en kalender her.
-          </p>
-        )}
-
-        {hasCalendars ? (
-          <form onSubmit={saveMyCalendar}>
-            <Label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</Label>
-            <br />
-            <Select value={calendarInput || undefined} onValueChange={setCalendarInput}>
-              <SelectTrigger id="calendarSelect">
-                <SelectValue placeholder="Velg en kalender …" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCalendars.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.summary}
-                    {c.primary ? " (hoved)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <br />
-            <br />
-            <Label className="inline-flex items-center">
-              <Checkbox
-                checked={sameCalendarForBoth}
-                onCheckedChange={(checked) => setSameCalendarForBoth(checked === true)}
-              />
-              <span className="ml-2">
-                Bruk samme kalender for tilgjengelighet og skriving av tildelinger
-              </span>
-            </Label>
-            <br />
-            {!sameCalendarForBoth && (
-              <div className="mt-4">
-                <Label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</Label>
-                <br />
-                <Select value={availabilityCalendarInput || undefined} onValueChange={setAvailabilityCalendarInput}>
-                  <SelectTrigger id="availabilityCalendarSelect">
-                    <SelectValue placeholder="Velg en kalender …" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {availableCalendars.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.summary}
-                        {c.primary ? " (hoved)" : ""}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <br />
-              </div>
-            )}
-            <br />
-            <Button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
-              Lagre
-            </Button>
-            {saved && <span> ✅ Lagret</span>}
-          </form>
-        ) : (
-          <p>
-            {connected
-              ? "Fant ingen kalendere å velge mellom."
-              : "Koble til Google-kalenderen din ovenfor for å velge kalender fra en liste."}
-          </p>
-        )}
-      </section>
+      <Suspense fallback={<InnstillingerSkeleton />}>
+        <InnstillingerData />
+      </Suspense>
     </main>
   );
 }
