@@ -17,7 +17,15 @@ data class ParentRecord(
     val avatar: String? = null,
     /** Forelderens egen valgte kalender for skriving av tildelinger (se /api/calendars/mine). */
     val calendarId: String? = null,
+    /** Kalenderen tilgjengelighet (opptatte tider) hentes fra. Null betyr "samme
+     * som calendarId" — bruk `effectiveAvailabilityCalendarId()` for oppslag. */
+    val availabilityCalendarId: String? = null,
 )
+
+/** Kalenderen som faktisk skal spørres for opptatte tider — `availabilityCalendarId`
+ * hvis forelderen har valgt en avvikende kalender, ellers `calendarId` (den
+ * avkrysningsboksen "bruk samme kalender" på /innstillinger tilsvarer). */
+fun ParentRecord.effectiveAvailabilityCalendarId(): String? = availabilityCalendarId ?: calendarId
 
 /**
  * Oppslag/oppretting av familier og foreldre. Brukes av JoinRoutes (familieopprettelse
@@ -150,11 +158,15 @@ class FamilyRepository(private val database: Database) {
         }
     }
 
-    /** Setter forelderens egen valgte kalender-ID (se CalendarRoutes) — samme
-     * "kun egen rad"-mønster som `updateProfile`, `parentId` er alltid fra sesjonen. */
-    fun updateParentCalendarId(parentId: UUID, calendarId: String) = transaction(database) {
+    /** Setter forelderens egen valgte kalender for skriving av tildelinger, og
+     * (valgfritt) en avvikende kalender for tilgjengelighetssjekk (se
+     * CalendarRoutes) — samme "kun egen rad"-mønster som `updateProfile`,
+     * `parentId` er alltid fra sesjonen. `availabilityCalendarId = null`
+     * betyr "bruk samme kalender som calendarId" (checkboxen i UI-et). */
+    fun updateParentCalendars(parentId: UUID, calendarId: String, availabilityCalendarId: String?) = transaction(database) {
         ParentsTable.update({ ParentsTable.id eq parentId }) {
             it[ParentsTable.calendarId] = calendarId
+            it[ParentsTable.availabilityCalendarId] = availabilityCalendarId
         }
     }
 
@@ -166,6 +178,7 @@ class FamilyRepository(private val database: Database) {
         name = this[ParentsTable.name],
         avatar = this[ParentsTable.avatar],
         calendarId = this[ParentsTable.calendarId],
+        availabilityCalendarId = this[ParentsTable.availabilityCalendarId],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

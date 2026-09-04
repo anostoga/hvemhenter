@@ -29,6 +29,10 @@ object ParentsTable : Table("parents") {
      * — tildelinger der forelderen er satt opp skrives som hendelser hit, i
      * stedet for til én delt familiekalender (se V3-migrasjonen). */
     val calendarId = text("calendar_id").nullable()
+    /** Kalenderen forelderen henter TILGJENGELIGHET (opptatte tider) fra, hvis
+     * forskjellig fra `calendarId`. Null betyr "samme som calendarId" — se
+     * V4-migrasjonen og checkboxen på /innstillinger. */
+    val availabilityCalendarId = text("availability_calendar_id").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }

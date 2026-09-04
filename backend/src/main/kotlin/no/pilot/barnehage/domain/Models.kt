@@ -20,6 +20,9 @@ data class Parent(
     val connected: Boolean = false,
     /** Forelderens egen valgte kalender (se /api/calendars/mine), eller null hvis ikke satt ennå. */
     val calendarId: String? = null,
+    /** Kalenderen forelderen henter TILGJENGELIGHET fra, hvis forskjellig fra
+     * `calendarId`. Null betyr "samme kalender" (se ParentRecord.effectiveAvailabilityCalendarId). */
+    val availabilityCalendarId: String? = null,
 )
 
 @Serializable

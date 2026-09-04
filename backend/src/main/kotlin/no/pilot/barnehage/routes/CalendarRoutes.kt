@@ -17,10 +17,10 @@ import no.pilot.barnehage.google.CalendarService
 import java.util.UUID
 
 @Serializable
-data class MyCalendarResponse(val calendarId: String?)
+data class MyCalendarResponse(val calendarId: String?, val availabilityCalendarId: String?)
 
 @Serializable
-data class UpdateMyCalendarRequest(val calendarId: String)
+data class UpdateMyCalendarRequest(val calendarId: String, val availabilityCalendarId: String? = null)
 
 @Serializable
 data class AvailableCalendarResponse(val id: String, val summary: String, val primary: Boolean)
@@ -42,7 +42,7 @@ fun Route.calendarRoutes(
             val session = call.userSession()!!
             val parent = familyRepository.findParent(UUID.fromString(session.parentId))
                 ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("forelder ikke funnet"))
-            call.respond(MyCalendarResponse(calendarId = parent.calendarId))
+            call.respond(MyCalendarResponse(calendarId = parent.calendarId, availabilityCalendarId = parent.availabilityCalendarId))
         }
 
         put("/api/calendars/mine") {
@@ -52,8 +52,13 @@ fun Route.calendarRoutes(
             if (request.calendarId.isBlank()) {
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("calendarId mangler"))
             }
-            familyRepository.updateParentCalendarId(parentId, request.calendarId)
-            call.respond(HttpStatusCode.OK, MyCalendarResponse(calendarId = request.calendarId))
+            // Tom streng betyr "ikke valgt" for tilgjengelighetskalenderen (samme som
+            // avkrysningsboksen "bruk samme kalender" i UI-et) — lagres som null,
+            // ikke som en tom streng, slik at effectiveAvailabilityCalendarId() faller
+            // tilbake til calendarId.
+            val availabilityCalendarId = request.availabilityCalendarId?.takeIf { it.isNotBlank() }
+            familyRepository.updateParentCalendars(parentId, request.calendarId, availabilityCalendarId)
+            call.respond(HttpStatusCode.OK, MyCalendarResponse(calendarId = request.calendarId, availabilityCalendarId = availabilityCalendarId))
         }
 
         // Lar brukeren velge kalender fra en nedtrekksliste i stedet for å skrive inn

@@ -226,15 +226,18 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
             avatar = parent.avatar,
             connected = tokenRepository.find(parent.id) != null,
             calendarId = parent.calendarId,
+            availabilityCalendarId = parent.availabilityCalendarId,
         )
     }
 
 /**
- * Henter opptatte perioder PER FORELDER fra forelderens EGEN valgte kalender
- * (se CalendarRoutes/`/api/calendars/mine`) — ikke lenger fra én kalender delt
- * av hele familien. En forelder uten valgt kalender, eller uten gyldig
- * access-token, gir rett og slett ingen opptatte perioder for seg selv (i stedet
- * for en feil) — konfliktsjekken degraderer da bare til "vi vet ikke", ikke krasj.
+ * Henter opptatte perioder PER FORELDER fra forelderens valgte TILGJENGELIGHETS-
+ * kalender (`availabilityCalendarId`, faller tilbake til `calendarId` hvis ikke
+ * satt — se CalendarRoutes/`/api/calendars/mine`), ikke nødvendigvis samme
+ * kalender som tildelinger skrives til. En forelder uten valgt kalender, eller
+ * uten gyldig access-token, gir rett og slett ingen opptatte perioder for seg
+ * selv (i stedet for en feil) — konfliktsjekken degraderer da bare til
+ * "vi vet ikke", ikke krasj.
  */
 private suspend fun fetchBusyPeriods(
     parents: List<Parent>,
@@ -245,7 +248,7 @@ private suspend fun fetchBusyPeriods(
     val (windowStartIso, windowEndIso) = isoWindow(date, "07:00", "17:30")
 
     return parents.associate { parent ->
-        val calendarId = parent.calendarId
+        val calendarId = parent.availabilityCalendarId ?: parent.calendarId
         val accessToken = if (calendarId.isNullOrBlank()) null else accessTokenProvider.getValidAccessToken(UUID.fromString(parent.id))
         val busy = if (accessToken == null || calendarId.isNullOrBlank()) {
             emptyList()
