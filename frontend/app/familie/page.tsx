@@ -24,7 +24,7 @@ export default function FamiliePage() {
   return (
     <main>
       <h1>Familie</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       <section>
         <h2>Medlemmer</h2>

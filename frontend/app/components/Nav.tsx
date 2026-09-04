@@ -1,9 +1,16 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
 import { api, WhoAmI } from "@/lib/api";
 import Link from "next/link";
 import { Logo } from "./Logo";
+import { Button } from "@/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 /**
  * Vises på alle sider (se layout.tsx). `initialWho` hentes SERVER-SIDE (se
@@ -23,76 +30,43 @@ import { Logo } from "./Logo";
  */
 export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   const who = initialWho;
-  const [showAccountMenu, setShowAccountMenu] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-  const buttonRef = useRef<HTMLButtonElement>(null);
 
   async function handleLogout() {
     await api.logout();
     window.location.href = "/";
   }
 
-  // Lukk ved Escape eller klikk utenfor mens menyen er åpen — samme mønster
-  // som den tidligere kontomodalen, bare tilpasset en nedtrekksmeny i stedet.
-  useEffect(() => {
-    if (!showAccountMenu) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        setShowAccountMenu(false);
-        buttonRef.current?.focus();
-      }
-    }
-    function onClickOutside(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node) && e.target !== buttonRef.current) {
-        setShowAccountMenu(false);
-      }
-    }
-    document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("mousedown", onClickOutside);
-    return () => {
-      document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("mousedown", onClickOutside);
-    };
-  }, [showAccountMenu]);
-
   return (
-    <nav className="topnav">
-      <div className="topnav-top-row">
-        <Link href="/" className="topnav-brand">
-          <Logo size={32} />
-          Hvem henter?
+    <nav className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
+      <div className="flex items-center justify-between gap-3">
+        <Link href="/" className="flex items-center gap-2 font-semibold text-inherit no-underline">
+          <Logo height={64} />
         </Link>
         {who.loggedIn ? (
-          <div className="account-menu">
-            <button
-              type="button"
-              className="topnav-username"
-              onClick={() => setShowAccountMenu((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={showAccountMenu}
-              ref={buttonRef}
-            >
-              {who.avatar && <span aria-hidden="true">{who.avatar}</span>} {who.name ?? "deg"}
-            </button>
-            {showAccountMenu && (
-              <div className="account-dropdown" role="menu" ref={menuRef}>
-                <Link href="/profil" role="menuitem" onClick={() => setShowAccountMenu(false)}>
-                  Profil
-                </Link>
-                <Link href="/innstillinger" role="menuitem" onClick={() => setShowAccountMenu(false)}>
-                  Innstillinger
-                </Link>
-                <button type="button" role="menuitem" onClick={handleLogout}>
-                  Logg ut
-                </button>
-              </div>
-            )}
-          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" className="h-auto min-h-0 border-none bg-transparent p-0 font-semibold text-inherit hover:underline hover:bg-transparent">
+                {who.avatar && <span aria-hidden="true">{who.avatar}</span>} {who.name ?? "deg"}
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem asChild>
+                <Link href="/profil">Profil</Link>
+              </DropdownMenuItem>
+              <DropdownMenuItem asChild>
+                <Link href="/innstillinger">Innstillinger</Link>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>Logg ut</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ) : (
-          <a href={api.loginUrl()}>Logg inn</a>
+          <Button variant="outline" asChild>
+            <a href={api.loginUrl()}>Logg inn</a>
+          </Button>
         )}
       </div>
-      <span className="topnav-links">
+      <span className="flex flex-wrap items-center gap-4">
         {who.loggedIn ? (
           <>
             <Link href="/ukeplan">Ukeplan</Link>

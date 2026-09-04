@@ -1,6 +1,10 @@
 import "./globals.css";
 import { Nav } from "./components/Nav";
 import { getServerWhoAmI } from "@/lib/server-api";
+import { Inter, Geist } from "next/font/google";
+import { cn } from "@/lib/utils";
+
+const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata = {
   title: "HvemHenter.no",
@@ -14,10 +18,12 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const who = await getServerWhoAmI();
 
   return (
-    <html lang="no">
-      <body>
-        <Nav initialWho={who} />
-        {children}
+    <html lang="no" className={cn("font-sans", geist.variable)}>
+      <body className="font-sans">
+        <div className="mx-auto max-w-[640px] px-4 pb-4 sm:max-w-[clamp(630px,calc(100vw-4rem),900px)] sm:px-8 sm:pb-8">
+          <Nav initialWho={who} />
+          {children}
+        </div>
       </body>
     </html>
   );

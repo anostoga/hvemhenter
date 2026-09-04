@@ -3,6 +3,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Assignment, AssignmentType, Parent } from "@/lib/api";
 import { CellAssignments, WeekCalendar } from "@/app/components/WeekCalendar";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 
 function toIsoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -70,16 +79,6 @@ export default function KalenderPage() {
     api.getParents().then(setParents).catch((e) => setError(String(e)));
     refreshAssignments();
   }, []);
-
-  // Lukk bekreftelsesmodalen med Escape — samme mønster som andre modaler/menyer i appen.
-  useEffect(() => {
-    if (!pendingResetWeek) return;
-    function onKeyDown(e: KeyboardEvent) {
-      if (e.key === "Escape") setPendingResetWeek(null);
-    }
-    document.addEventListener("keydown", onKeyDown);
-    return () => document.removeEventListener("keydown", onKeyDown);
-  }, [pendingResetWeek]);
 
   function refreshAssignments() {
     api.getAssignments().then(setAssignments).catch((e) => setError(String(e)));
@@ -188,7 +187,7 @@ export default function KalenderPage() {
   return (
     <main>
       <h1>Kalender</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       <section>
         <WeekCalendar
@@ -202,29 +201,30 @@ export default function KalenderPage() {
         />
       </section>
 
-      {pendingResetWeek && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) cancelResetWeek();
-          }}
-        >
-          <div className="modal-dialog" role="dialog" aria-modal="true" aria-label="Bekreft nullstilling av uken">
-            <p>
+      <Dialog
+        open={pendingResetWeek !== null}
+        onOpenChange={(open) => {
+          if (!open) cancelResetWeek();
+        }}
+      >
+        <DialogContent aria-label="Bekreft nullstilling av uken">
+          <DialogHeader>
+            <DialogTitle>Nullstill uken?</DialogTitle>
+            <DialogDescription>
               Nullstille all fordeling denne uken? Dette sletter alle tildelinger (og tilhørende kalenderhendelser) for
               uken.
-            </p>
-            <div style={{ display: "flex", gap: "0.5rem", justifyContent: "flex-end" }}>
-              <button type="button" onClick={cancelResetWeek}>
-                Avbryt
-              </button>
-              <button type="button" className="week-calendar-reset-button" onClick={confirmResetWeek}>
-                Nullstill
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={cancelResetWeek}>
+              Avbryt
+            </Button>
+            <Button type="button" variant="destructive" onClick={confirmResetWeek}>
+              Nullstill
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

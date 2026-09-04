@@ -1,11 +1,8 @@
-body {
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  margin: 0;
-  padding: 2rem;
-  max-width: 640px;
-  margin-inline: auto;
-  color: #1a1a1a;
-}
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 *,
 *::before,
@@ -13,380 +10,140 @@ body {
   box-sizing: border-box;
 }
 
-h1 {
-  font-size: 1.5rem;
+@theme inline {
+  --font-heading: var(--font-sans);
+  --font-sans: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-section {
-  margin-bottom: 2rem;
-  padding: 1rem;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+:root {
+  /* Fargepalett bygget på merkevarefargene (se oppgavebeskrivelsen):
+     Brand #5B8A76 (grønn), Background #FBF7F0, aksenter #E8795A (korall)
+     og #E0A94A (gull), nøytral #A79A85, Alert #D14F3D. Knappbakgrunner
+     bruker justerte (litt mørkere/lysere) varianter av kildefargene der det
+     var nødvendig for å nå WCAG AA (≥4.5:1) kontrast mot tekstfargen — se
+     plan.md i sesjonsmappen for kontrastberegningene. */
+  --card: oklch(1 0 0);
+  --card-foreground: #2b2620;
+  --popover: oklch(1 0 0);
+  --popover-foreground: #2b2620;
+  --primary: #547f6d;
+  --primary-foreground: #ffffff;
+  --secondary: #ece9e4;
+  --secondary-foreground: #2b2620;
+  --muted: #f2f0ed;
+  --muted-foreground: #786f60;
+  --accent: #fae4de;
+  --accent-foreground: #2b2620;
+  --destructive: #c94c3b;
+  --destructive-foreground: #ffffff;
+  --border: #b4a997;
+  --input: #b4a997;
+  --ring: #5b8a76;
+  --chart-1: #5b8a76;
+  --chart-2: #e8795a;
+  --chart-3: #e0a94a;
+  --chart-4: #a79a85;
+  --chart-5: #d14f3d;
+  --radius: 0.625rem;
+  --sidebar: #fbf7f0;
+  --sidebar-foreground: #2b2620;
+  --sidebar-primary: #547f6d;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #ece9e4;
+  --sidebar-accent-foreground: #2b2620;
+  --sidebar-border: #b4a997;
+  --sidebar-ring: #5b8a76;
+  --background: #fbf7f0;
+  --foreground: #2b2620;
 }
 
-button {
-  cursor: pointer;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  border: 1px solid #333;
-  background: white;
-  /* 44px er den vanlige anbefalte minste touch-target-høyden (WCAG 2.5.5/
-     Apple/Google sine retningslinjer) — sikrer at knapper er lette å treffe
-     med fingeren på mobil, uavhengig av innholdets naturlige høyde. */
-  min-height: 44px;
-  /* ≥16px unngår at Safari på iOS zoomer inn automatisk ved fokus på et
-     skjemaelement med mindre skrift. */
-  font-size: 16px;
+.dark {
+  --background: #211d18;
+  --foreground: #f5f1e8;
+  --card: #2c2620;
+  --card-foreground: #f5f1e8;
+  --popover: #2c2620;
+  --popover-foreground: #f5f1e8;
+  --primary: #6f9886;
+  --primary-foreground: #211d18;
+  --secondary: #3a332b;
+  --secondary-foreground: #f5f1e8;
+  --muted: #332d26;
+  --muted-foreground: #a79a85;
+  --accent: #3a2a22;
+  --accent-foreground: #f5f1e8;
+  --destructive: #c94c3b;
+  --destructive-foreground: #ffffff;
+  --border: #4a4238;
+  --input: #4a4238;
+  --ring: #6f9886;
+  --chart-1: #5b8a76;
+  --chart-2: #e8795a;
+  --chart-3: #e0a94a;
+  --chart-4: #a79a85;
+  --chart-5: #d14f3d;
+  --sidebar: #2c2620;
+  --sidebar-foreground: #f5f1e8;
+  --sidebar-primary: #6f9886;
+  --sidebar-primary-foreground: #211d18;
+  --sidebar-accent: #3a332b;
+  --sidebar-accent-foreground: #f5f1e8;
+  --sidebar-border: #4a4238;
+  --sidebar-ring: #6f9886;
 }
 
-button:hover {
-  background: #f0f0f0;
-}
-
-/* Uten dette ser en deaktivert knapp helt lik ut som en aktiv (samme farger,
-   fortsatt "cursor: pointer") — brukeren kan da ikke se at klikk ikke gjør
-   noe (f.eks. "Nullstill uken" rett etter at uken allerede er nullstilt). */
-button:disabled {
-  cursor: not-allowed;
-  opacity: 0.5;
-  background: #f0f0f0;
-}
-
-button:disabled:hover {
-  background: #f0f0f0;
-}
-
-input,
-select {
-  font-size: 16px;
-  min-height: 44px;
-  padding: 0.4rem 0.6rem;
-  border-radius: 6px;
-  border: 1px solid #999;
-}
-
-.error {
-  color: #b00020;
-}
-
-.topnav {
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  padding-bottom: 1rem;
-  margin-bottom: 1rem;
-  border-bottom: 1px solid #ddd;
-}
-
-.topnav-top-row {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 0.75rem;
-}
-
-.topnav-brand {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-  text-decoration: none;
-  color: inherit;
-}
-
-.topnav-links {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 1rem;
-}
-
-.topnav-links button {
-  padding: 0.25rem 0.75rem;
-}
-
-.topnav-username {
-  font-weight: 600;
-  font-family: inherit;
-  color: inherit;
-  background: none;
-  border: none;
-  padding: 0;
-  min-height: auto;
-  cursor: pointer;
-}
-
-.topnav-username:hover {
-  text-decoration: underline;
-}
-
-.account-menu {
-  position: relative;
-}
-
-.account-dropdown {
-  position: absolute;
-  top: calc(100% + 0.4rem);
-  right: 0;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-  display: flex;
-  flex-direction: column;
-  min-width: 160px;
-  overflow: hidden;
-  z-index: 100;
-}
-
-.account-dropdown a,
-.account-dropdown button {
-  padding: 0.65rem 1rem;
-  text-align: left;
-  border: none;
-  background: none;
-  color: inherit;
-  font: inherit;
-  text-decoration: none;
-  cursor: pointer;
-}
-
-.account-dropdown a:hover,
-.account-dropdown button:hover {
-  background: #f2f2f2;
-}
-
-.account-dropdown button {
-  border-top: 1px solid #eee;
-  margin-top: auto;
-}
-
-.modal-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 1rem;
-  z-index: 100;
-}
-
-.modal-dialog {
-  background: white;
-  border-radius: 8px;
-  padding: 1.5rem;
-  min-width: 240px;
-  max-width: 90vw;
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
-}
-
-.modal-dialog-close {
-  align-self: flex-end;
-  background: none;
-  border: none;
-  color: #555;
-}
-
-.avatar-grid {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 0.5rem;
-}
-
-.avatar-grid button {
-  font-size: 1.75rem;
-  line-height: 1;
-  padding: 0.6rem;
-  border-radius: 8px;
-  border: 2px solid transparent;
-  background: #f7f7f7;
-  cursor: pointer;
-}
-
-.avatar-grid button:hover {
-  background: #eee;
-}
-
-.avatar-grid button[aria-pressed="true"] {
-  border-color: #146c6b;
-  background: #e4f2f1;
-}
-
-.profile-avatar-preview {
-  font-size: 2rem;
-  line-height: 1;
-}
-
-.week-calendar {
-  display: flex;
-  flex-direction: column;
-  gap: 1.25rem;
-  overflow-x: auto;
-}
-
-.week-calendar-week-header {
-  margin-bottom: 0.4rem;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-
-.week-calendar-reset-button {
-  background: transparent;
-  border: 1px solid #b3413e;
-  color: #b3413e;
-}
-
-.week-calendar-reset-button:hover:not(:disabled) {
-  background: #fdecea;
-}
-
-.week-calendar-week {
-  display: flex;
-  gap: 0.5rem;
-  align-items: stretch;
-}
-
-.week-calendar-day {
-  flex: 1 0 0;
-  min-width: 110px;
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-}
-
-.week-calendar-day-today {
-  border-color: #146c6b;
-  background: #f0f8f8;
-}
-
-.week-calendar-day-header {
-  margin: 0;
-  font-weight: 600;
-  text-transform: capitalize;
-}
-
-.week-slot {
-  padding: 0.4rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  background: #fafafa;
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-}
-
-.week-slot-label {
-  margin: 0;
-  font-weight: 600;
-  color: #555;
-}
-
-.week-slot-select {
-  width: 100%;
-  min-height: 34px;
-  font-size: 0.85rem;
-}
-
-.week-slot-meta {
-  margin: 0;
-  font-size: 0.75rem;
-  color: #777;
-  min-height: 1em;
-}
-
-.family-illustration-wrapper svg {
-  max-width: 100%;
-  height: auto;
-  display: block;
-  margin-top: 1.5rem;
-}
-
-/*
- * Mobiltilpasning — brytningsgrense 640px (samme som body sin max-width, se
- * plan.md i sesjonsmappen for begrunnelsen for akkurat denne grensen).
- * Under denne bredden:
- * - reduseres body-padding (mer innhold synlig på en smal skjerm)
- * - select/input blir fullbredde (lettere å lese/tappe enn nettleserens
- *   naturlige, ofte for smale, standardbredde)
- * - WeekCalendar sine uke-rader stables vertikalt (én dag per rad, full
- *   bredde) i stedet for 5 kolonner side ved side — unngår horisontal
- *   scroll, som er en dårlig mobilopplevelse for appens kjernefunksjon.
- */
-@media (max-width: 640px) {
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
   body {
-    padding: 1rem;
+    @apply bg-background text-foreground font-sans;
   }
-
-  select,
-  input {
-    width: 100%;
+  html {
+    @apply font-sans;
   }
-
-  /* Unntak fra regelen over: en avkrysningsboks skal aldri strekkes til full
-     bredde (den ville da blitt et enormt, klikkbart rektangel i stedet for
-     en liten firkant) — se checkboxen på /innstillinger. I stedet gjøres den
-     større enn nettleserens standardstørrelse (vanligvis ~13px), slik at
-     den fortsatt er lett å treffe med fingeren uten tomrommet fullbredde ga. */
-  input[type="checkbox"] {
-    width: 1.5rem;
-    height: 1.5rem;
+  h1 {
+    @apply text-2xl;
   }
-
-  .week-calendar-week {
-    flex-direction: column;
-  }
-
-  .week-calendar-day {
-    min-width: 0;
-  }
-
-  /* Passerte dager tar unødvendig plass på små skjermer (må scrolles forbi
-     for å nå dagens dato) — skjules helt her. På større skjermer vises de
-     fortsatt (kun med deaktiverte kontroller), siden radene der uansett
-     viser alle 5 dager side ved side og passerte dager ikke koster ekstra
-     scrolling. */
-  .week-calendar-day-past {
-    display: none;
-  }
-
-  /* Hvis HELE uken er passert (kun mulig for inneværende uke, siden neste
-     uke aldri kan være passert), er alle dagene skjult over — da skjules
-     også uke-blokken (inkl. "Generer forslag"-knappen) slik at det ikke
-     blir en tom, forvirrende seksjon øverst på siden. */
-  .week-calendar-week-block-past {
-    display: none;
-  }
-}
-
-/*
- * Kalenderen (5 dag-kolonner à minst 110px + mellomrom) trenger ca. 580px
- * innholdsbredde, som ikke fikk plass innenfor den tidligere 640px
- * body-bredden minus sidepadding — det ga en (liten, men irriterende)
- * horisontal scrollbar på skrivebord/nettbrett. Løsningen er gjort generell
- * for ALLE sider (ikke bare kalenderen) fra og med 640px bredde (der
- * mobil-stablingen over slutter å gjelde, se forrige media query): body sin
- * max-width vokser fra 640px opp til 900px etter hvert som viewportet blir
- * bredere, slik at alle sider (ikke bare kalenderen) får godt med albuerom
- * på større skjermer.
- */
-@media (min-width: 640px) {
-  body {
-    /*
-     * clamp() sikrer at body ALLTID er minst 630px bred (nok til at
-     * kalenderens 5 dag-kolonner + mellomrom + sidepadding OG 1px kant på
-     * hver side får plass uten intern horisontal scroll i WeekCalendar),
-     * samtidig som den vokser med viewportet opp til 900px på større
-     * skjermer. 630px < 640px (denne media queryens nedre grense), så det er
-     * alltid trygt — body blir aldri bredere enn viewportet selv på de
-     * smaleste skjermene denne regelen gjelder for.
-     */
-    max-width: clamp(630px, calc(100vw - 4rem), 900px);
+  section {
+    @apply mb-8 rounded-lg border border-border p-4;
   }
 }

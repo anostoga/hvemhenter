@@ -1,56 +1,59 @@
 /**
- * Logo som viser en forelder og et barn som holder hender.
- * Rendres inline som JSX (ikke en statisk fil i public/) siden den er liten
- * og brukes ett sted — unngår en ekstra HTTP-request og gjør den enkel å
- * skalere via `size`-prop.
+ * Logo/ordmerke: en tegnet figur (hode, hår, kinn, øyne, smil) ved siden av
+ * teksten "Hvem henter?" — rendres inline som JSX (ikke en statisk fil i
+ * public/) siden den er liten og brukes ett sted, se Nav.tsx. `height`-propen
+ * skalerer hele merket proporsjonalt (viewBox bevarer sideforholdet 620:200).
  */
-export function Logo({ size = 32 }: { size?: number }) {
+export function Logo({ height = 32 }: { height?: number }) {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 240 240"
-      width={size}
-      height={size}
+      viewBox="0 0 620 200"
+      height={height}
+      width={(465 / 150) * height}
       aria-hidden={false}
       role="img"
     >
-      <title>Forelder og barn som holder hender</title>
+      <title>Hvem henter?</title>
 
-      {/* Foreldrens arm (tegnes først, så kroppen overlapper toppen) */}
-      <path d="M134,90 Q98,112 112,146" fill="none" stroke="#146C6B" strokeWidth={20} strokeLinecap="round" />
-      {/* Barnets arm */}
-      <path d="M88,142 Q98,144 112,146" fill="none" stroke="#F0985A" strokeWidth={16} strokeLinecap="round" />
+      <g transform="translate(1,23) scale(0.75)">
+        {/* hode */}
+        <circle cx="100" cy="102" r="72" fill="#F7CBA4" stroke="#2E2A25" strokeWidth={5} />
+        {/* hårlokk */}
+        <path
+          d="M87 33 C79 19, 99 15, 103 29"
+          fill="none"
+          stroke="#2E2A25"
+          strokeWidth={5}
+          strokeLinecap="round"
+        />
+        {/* kinn */}
+        <circle cx="58" cy="118" r="12" fill="#F2977E" opacity={0.55} />
+        <circle cx="142" cy="118" r="12" fill="#F2977E" opacity={0.55} />
+        {/* øyne */}
+        <circle cx="74" cy="94" r="6.5" fill="#2E2A25" />
+        <circle cx="126" cy="94" r="6.5" fill="#2E2A25" />
+        {/* smil */}
+        <path
+          d="M70 122 Q100 152, 130 122"
+          fill="none"
+          stroke="#2E2A25"
+          strokeWidth={6}
+          strokeLinecap="round"
+        />
+      </g>
 
-      {/* Foreldrens kropp */}
-      <path
-        d="M130,84
-           C119,122 111,162 111,202
-           Q111,212 121,212
-           L195,212
-           Q205,212 205,202
-           C205,162 197,122 186,84
-           Z"
-        fill="#146C6B"
-      />
-      {/* Foreldrens hode */}
-      <circle cx="158" cy="56" r="25" fill="#FFE1B8" />
-
-      {/* Barnets kropp */}
-      <path
-        d="M62,140
-           C55,162 50,186 50,206
-           Q50,212 56,212
-           L97,212
-           Q103,212 103,206
-           C103,186 98,162 91,140
-           Z"
-        fill="#F0985A"
-      />
-      {/* Barnets hode */}
-      <circle cx="76" cy="119" r="18" fill="#FFE1B8" />
-
-      {/* Aksent der hendene møtes */}
-      <circle cx="112" cy="146" r="9" fill="#F6C34D" />
+      <text
+        x="162"
+        y="118"
+        fontFamily="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
+        fontSize={54}
+        fontWeight={700}
+        fill="#2E2A25"
+        letterSpacing="-0.5"
+      >
+        Hvem henter<tspan fill="#E8795A">?</tspan>
+      </text>
     </svg>
   );
 }

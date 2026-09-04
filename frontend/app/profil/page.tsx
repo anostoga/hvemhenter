@@ -3,6 +3,15 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, AVATARS } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function ProfilPage() {
   const router = useRouter();
@@ -45,13 +54,13 @@ export default function ProfilPage() {
   return (
     <main>
       <h1>Profil</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
       {saved && <p role="status">Lagret!</p>}
 
       <form onSubmit={handleSave}>
-        <label htmlFor="displayName">Visningsnavn</label>
+        <Label htmlFor="displayName">Visningsnavn</Label>
         <br />
-        <input
+        <Input
           id="displayName"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -62,54 +71,44 @@ export default function ProfilPage() {
 
         <span id="avatarLabel">Avatar</span>
         <br />
-        <span className="profile-avatar-preview" aria-labelledby="avatarLabel">
+        <span className="text-3xl leading-none" aria-labelledby="avatarLabel">
           {avatar ?? "—"}
         </span>{" "}
-        <button type="button" onClick={() => setShowAvatarPicker(true)}>
+        <Button type="button" variant="outline" onClick={() => setShowAvatarPicker(true)}>
           Velg avatar
-        </button>
+        </Button>
         <br />
         <br />
 
-        <button type="submit" disabled={saving || !name.trim()}>
+        <Button type="submit" disabled={saving || !name.trim()}>
           Lagre
-        </button>
+        </Button>
       </form>
 
-      {showAvatarPicker && (
-        <div
-          className="modal-overlay"
-          onClick={(e) => {
-            if (e.target === e.currentTarget) setShowAvatarPicker(false);
-          }}
-        >
-          <div className="modal-dialog" role="dialog" aria-modal="true" aria-label="Velg avatar">
-            <button
-              type="button"
-              className="modal-dialog-close"
-              onClick={() => setShowAvatarPicker(false)}
-            >
-              Lukk
-            </button>
-            <div className="avatar-grid">
-              {AVATARS.map((a) => (
-                <button
-                  key={a}
-                  type="button"
-                  aria-pressed={avatar === a}
-                  aria-label={`Velg avatar ${a}`}
-                  onClick={() => {
-                    setAvatar(a);
-                    setShowAvatarPicker(false);
-                  }}
-                >
-                  {a}
-                </button>
-              ))}
-            </div>
+      <Dialog open={showAvatarPicker} onOpenChange={setShowAvatarPicker}>
+        <DialogContent aria-label="Velg avatar">
+          <DialogHeader>
+            <DialogTitle>Velg avatar</DialogTitle>
+          </DialogHeader>
+          <div className="grid grid-cols-4 gap-2">
+            {AVATARS.map((a) => (
+              <button
+                key={a}
+                type="button"
+                aria-pressed={avatar === a}
+                aria-label={`Velg avatar ${a}`}
+                onClick={() => {
+                  setAvatar(a);
+                  setShowAvatarPicker(false);
+                }}
+                className="cursor-pointer rounded-lg border-2 border-transparent bg-muted p-2.5 text-2xl leading-none hover:bg-border aria-pressed:border-primary aria-pressed:bg-accent"
+              >
+                {a}
+              </button>
+            ))}
           </div>
-        </div>
-      )}
+        </DialogContent>
+      </Dialog>
     </main>
   );
 }

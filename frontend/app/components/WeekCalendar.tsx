@@ -1,4 +1,8 @@
 import { Assignment, AssignmentType, Parent } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const UNASSIGNED = "__unassigned__";
 
 export type CellAssignments = Partial<Record<AssignmentType, Assignment>>;
 
@@ -64,32 +68,35 @@ export function WeekCalendar({
     const past = isPast(date);
 
     return (
-      <div className="week-slot">
-        <p className="week-slot-label">{TYPE_LABEL[type]}</p>
-        <select
-          className="week-slot-select"
-          value={assignment?.parentId ?? ""}
+      <div className="flex flex-col gap-1 rounded bg-muted p-2 text-sm">
+        <p className="m-0 font-semibold text-foreground">{TYPE_LABEL[type]}</p>
+        <Select
+          value={assignment?.parentId ?? UNASSIGNED}
           disabled={loading || past}
-          aria-label={`${TYPE_LABEL[type]} ${dayLabel(date)}`}
-          onChange={(e) => onChangeAssignment(date, type, e.target.value)}
+          onValueChange={(value) => onChangeAssignment(date, type, value === UNASSIGNED ? "" : value)}
         >
-          <option value="">Ikke tildelt</option>
-          {parents.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.avatar ? `${p.avatar} ` : ""}
-              {p.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-full min-h-[34px] text-[0.85rem]" aria-label={`${TYPE_LABEL[type]} ${dayLabel(date)}`}>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={UNASSIGNED}>Ikke tildelt</SelectItem>
+            {parents.map((p) => (
+              <SelectItem key={p.id} value={p.id}>
+                {p.avatar ? `${p.avatar} ` : ""}
+                {p.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
         {/* Fast plass for kilde-teksten (ikke-brytende mellomrom når ingen tildeling) —
             unngår at boksens høyde endrer seg avhengig av om noe er tildelt. */}
-        <p className="week-slot-meta">{assignment ? (assignment.source === "AUTO" ? "auto" : "manuelt") : "\u00A0"}</p>
+        <p className="m-0 min-h-[1em] text-xs text-muted-foreground">{assignment ? (assignment.source === "AUTO" ? "auto" : "manuelt") : "\u00A0"}</p>
       </div>
     );
   }
 
   return (
-    <div className="week-calendar">
+    <div className="flex flex-col gap-5 overflow-x-auto">
       {weeks.map((week, i) => {
         const weekIsPast = week.every((date) => isPast(date));
         // "Fullt generert" = alle 10 slots (5 dager × Levering/Henting) i uken har
@@ -108,26 +115,30 @@ export function WeekCalendar({
           return !cell?.DROPOFF && !cell?.PICKUP;
         });
         return (
-        <div className={`week-calendar-week-block${weekIsPast ? " week-calendar-week-block-past" : ""}`} key={i}>
-          <div className="week-calendar-week-header">
-            <button disabled={loading || weekIsPast || weekFullyAssigned} onClick={() => onGenerateWeekPlan(week)}>
+        <div className={weekIsPast ? "hidden sm:block" : undefined} key={i}>
+          <div className="mb-1.5 flex flex-wrap gap-2">
+            <Button
+              disabled={loading || weekIsPast || weekFullyAssigned}
+              onClick={() => onGenerateWeekPlan(week)}
+            >
               Generer forslag for uken
-            </button>
-            <button
-              className="week-calendar-reset-button"
+            </Button>
+            <Button
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive/10"
               disabled={loading || weekIsPast || weekHasNoAssignments}
               onClick={() => onResetWeekPlan(week)}
             >
               Nullstill uken
-            </button>
+            </Button>
           </div>
-          <div className="week-calendar-week">
+          <div className="flex flex-col items-stretch gap-2 sm:flex-row">
             {week.map((date) => (
               <div
-                className={`week-calendar-day${date === today ? " week-calendar-day-today" : ""}${isPast(date) ? " week-calendar-day-past" : ""}`}
+                className={`flex flex-1 flex-col gap-1.5 rounded-md border p-2 ${date === today ? "border-primary bg-accent" : "border-border"} ${isPast(date) ? "hidden sm:flex sm:min-w-0" : "sm:min-w-[110px]"}`}
                 key={date}
               >
-                <p className="week-calendar-day-header">{dayLabel(date)}</p>
+                <p className="m-0 font-semibold capitalize">{dayLabel(date)}</p>
                 {renderSlot(date, "DROPOFF")}
                 {renderSlot(date, "PICKUP")}
               </div>

@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { api, AvailableCalendar, MyCalendar } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function InnstillingerPage() {
   // Kun den innloggede brukerens EGEN tilkoblingsstatus/kalender vises her —
@@ -72,7 +76,7 @@ export default function InnstillingerPage() {
   return (
     <main>
       <h1>Innstillinger</h1>
-      {error && <p className="error">{error}</p>}
+      {error && <p className="text-destructive">{error}</p>}
 
       {connected === false && (
         <section>
@@ -95,58 +99,57 @@ export default function InnstillingerPage() {
 
         {hasCalendars ? (
           <form onSubmit={saveMyCalendar}>
-            <label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</label>
+            <Label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</Label>
             <br />
-            <select id="calendarSelect" value={calendarInput} onChange={(e) => setCalendarInput(e.target.value)}>
-              <option value="" disabled>
-                Velg en kalender …
-              </option>
-              {availableCalendars.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.summary}
-                  {c.primary ? " (hoved)" : ""}
-                </option>
-              ))}
-            </select>
+            <Select value={calendarInput || undefined} onValueChange={setCalendarInput}>
+              <SelectTrigger id="calendarSelect">
+                <SelectValue placeholder="Velg en kalender …" />
+              </SelectTrigger>
+              <SelectContent>
+                {availableCalendars.map((c) => (
+                  <SelectItem key={c.id} value={c.id}>
+                    {c.summary}
+                    {c.primary ? " (hoved)" : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <br />
             <br />
-            <label style={{ display: "inline-flex", alignItems: "center" }}>
-              <input
-                type="checkbox"
+            <Label className="inline-flex items-center">
+              <Checkbox
                 checked={sameCalendarForBoth}
-                onChange={(e) => setSameCalendarForBoth(e.target.checked)}
+                onCheckedChange={(checked) => setSameCalendarForBoth(checked === true)}
               />
-              <span style={{ marginLeft: "0.5rem" }}>
+              <span className="ml-2">
                 Bruk samme kalender for tilgjengelighet og skriving av tildelinger
               </span>
-            </label>
+            </Label>
             <br />
             {!sameCalendarForBoth && (
-              <div style={{ marginTop: "1rem" }}>
-                <label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</label>
+              <div className="mt-4">
+                <Label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</Label>
                 <br />
-                <select
-                  id="availabilityCalendarSelect"
-                  value={availabilityCalendarInput}
-                  onChange={(e) => setAvailabilityCalendarInput(e.target.value)}
-                >
-                  <option value="" disabled>
-                    Velg en kalender …
-                  </option>
-                  {availableCalendars.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.summary}
-                      {c.primary ? " (hoved)" : ""}
-                    </option>
-                  ))}
-                </select>
+                <Select value={availabilityCalendarInput || undefined} onValueChange={setAvailabilityCalendarInput}>
+                  <SelectTrigger id="availabilityCalendarSelect">
+                    <SelectValue placeholder="Velg en kalender …" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {availableCalendars.map((c) => (
+                      <SelectItem key={c.id} value={c.id}>
+                        {c.summary}
+                        {c.primary ? " (hoved)" : ""}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
                 <br />
               </div>
             )}
             <br />
-            <button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
+            <Button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
               Lagre
-            </button>
+            </Button>
             {saved && <span> ✅ Lagret</span>}
           </form>
         ) : (

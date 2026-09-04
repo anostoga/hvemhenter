@@ -2,6 +2,9 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 function NotRegisteredNotice() {
   const params = useSearchParams();
@@ -37,17 +40,17 @@ export default function JoinPage() {
       </Suspense>
       <p>Skriv inn koden du har fått for å opprette en ny familie, eller invitasjonskoden fra den andre forelderen.</p>
       <form onSubmit={handleSubmit}>
-        <label htmlFor="code">Kode</label>
-        <input
+        <Label htmlFor="code">Kode</Label>
+        <Input
           id="code"
           name="code"
           value={code}
           onChange={(e) => setCode(e.target.value)}
           required
         />
-        <button type="submit" disabled={status === "loading"}>
+        <Button type="submit" disabled={status === "loading"}>
           Fortsett
-        </button>
+        </Button>
       </form>
     </main>
   );
