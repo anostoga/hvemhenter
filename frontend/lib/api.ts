@@ -9,6 +9,7 @@ export interface Parent {
   avatar: string | null;
   connected: boolean;
   calendarId: string | null;
+  availabilityCalendarId: string | null;
 }
 
 export interface Assignment {
@@ -37,6 +38,7 @@ export interface Family {
 
 export interface MyCalendar {
   calendarId: string | null;
+  availabilityCalendarId: string | null;
 }
 
 export interface AvailableCalendar {
@@ -136,12 +138,12 @@ export const api = {
   getMyCalendar: () =>
     fetch(`${API_BASE_URL}/api/calendars/mine`, { credentials: "include" }).then((r) => handle<MyCalendar>(r)),
 
-  updateMyCalendar: (calendarId: string) =>
+  updateMyCalendar: (calendarId: string, availabilityCalendarId: string | null) =>
     fetch(`${API_BASE_URL}/api/calendars/mine`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ calendarId }),
+      body: JSON.stringify({ calendarId, availabilityCalendarId }),
     }).then((r) => handle<MyCalendar>(r)),
 
   // Returnerer `null` (i stedet for å kaste) når brukeren ikke har koblet til

@@ -329,6 +329,16 @@ select {
     width: 100%;
   }
 
+  /* Unntak fra regelen over: en avkrysningsboks skal aldri strekkes til full
+     bredde (den ville da blitt et enormt, klikkbart rektangel i stedet for
+     en liten firkant) — se checkboxen på /innstillinger. I stedet gjøres den
+     større enn nettleserens standardstørrelse (vanligvis ~13px), slik at
+     den fortsatt er lett å treffe med fingeren uten tomrommet fullbredde ga. */
+  input[type="checkbox"] {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
   .week-calendar-week {
     flex-direction: column;
   }

@@ -3,8 +3,8 @@ import { Nav } from "./components/Nav";
 import { getServerWhoAmI } from "@/lib/server-api";
 
 export const metadata = {
-  title: "HentMeg.no",
-  description: "Fordel levering og henting i barnehagen mellom to foreldre",
+  title: "HvemHenter.no",
+  description: "Fordel levering og henting i barnehagen",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {

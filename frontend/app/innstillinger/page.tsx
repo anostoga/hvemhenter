@@ -10,6 +10,14 @@ export default function InnstillingerPage() {
   const [connected, setConnected] = useState<boolean | null>(null);
   const [myCalendar, setMyCalendar] = useState<MyCalendar | null>(null);
   const [calendarInput, setCalendarInput] = useState("");
+  // Kalenderen tilgjengelighet (opptatte tider) hentes fra. Kun i bruk når
+  // `sameCalendarForBoth` er false — se checkboxen under.
+  const [availabilityCalendarInput, setAvailabilityCalendarInput] = useState("");
+  // Avkrysningsboksen: bruk SAMME kalender (calendarInput) til både skriving
+  // av tildelinger og henting av tilgjengelighet. Da sendes
+  // availabilityCalendarId = null til backend, som faller tilbake til
+  // calendarId (se CalendarRoutes.kt).
+  const [sameCalendarForBoth, setSameCalendarForBoth] = useState(true);
   // null = ikke tilkoblet Google ennå (eller henting feilet) — da kan ingen
   // kalender velges i det hele tatt (se meldingen i JSX under). Tom liste =
   // tilkoblet, men ingen kalendere funnet (uvanlig, samme fallback som null).
@@ -23,6 +31,8 @@ export default function InnstillingerPage() {
       .then((c) => {
         setMyCalendar(c);
         setCalendarInput(c.calendarId ?? "");
+        setAvailabilityCalendarInput(c.availabilityCalendarId ?? "");
+        setSameCalendarForBoth(c.availabilityCalendarId == null);
       })
       .catch((e) => setError(String(e)));
     // Egen catch (ikke satt til den globale `error`) — 409 (ikke tilkoblet ennå)
@@ -44,7 +54,8 @@ export default function InnstillingerPage() {
     setError(null);
     setSaved(false);
     try {
-      const c = await api.updateMyCalendar(calendarInput);
+      const availabilityCalendarId = sameCalendarForBoth ? null : availabilityCalendarInput || null;
+      const c = await api.updateMyCalendar(calendarInput, availabilityCalendarId);
       setMyCalendar(c);
       setSaved(true);
     } catch (e) {
@@ -63,13 +74,15 @@ export default function InnstillingerPage() {
       <h1>Innstillinger</h1>
       {error && <p className="error">{error}</p>}
 
-      <section>
-        <h2>Koble til Google Kalender</h2>
-        <p>
-          <a href={api.authStartUrl()}>Koble til/forny min kalendertilgang</a>
-        </p>
-        <p>{connected ? "✅ Du er tilkoblet" : connected === false ? "Ikke tilkoblet ennå" : "Sjekker …"}</p>
-      </section>
+      {connected === false && (
+        <section>
+          <h2>Koble til Google Kalender</h2>
+          <p>
+            <a href={api.authStartUrl()}>Koble til/forny min kalendertilgang</a>
+          </p>
+          <p>Ikke tilkoblet ennå</p>
+        </section>
+      )}
 
       <section>
         <h2>Min kalender</h2>
@@ -82,7 +95,7 @@ export default function InnstillingerPage() {
 
         {hasCalendars ? (
           <form onSubmit={saveMyCalendar}>
-            <label htmlFor="calendarSelect">Velg din kalender</label>
+            <label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</label>
             <br />
             <select id="calendarSelect" value={calendarInput} onChange={(e) => setCalendarInput(e.target.value)}>
               <option value="" disabled>
@@ -96,13 +109,52 @@ export default function InnstillingerPage() {
               ))}
             </select>
             <br />
-            <button type="submit" disabled={!calendarInput}>
+            <br />
+            <label style={{ display: "inline-flex", alignItems: "center" }}>
+              <input
+                type="checkbox"
+                checked={sameCalendarForBoth}
+                onChange={(e) => setSameCalendarForBoth(e.target.checked)}
+              />
+              <span style={{ marginLeft: "0.5rem" }}>
+                Bruk samme kalender for tilgjengelighet og skriving av tildelinger
+              </span>
+            </label>
+            <br />
+            {!sameCalendarForBoth && (
+              <div style={{ marginTop: "1rem" }}>
+                <label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</label>
+                <br />
+                <select
+                  id="availabilityCalendarSelect"
+                  value={availabilityCalendarInput}
+                  onChange={(e) => setAvailabilityCalendarInput(e.target.value)}
+                >
+                  <option value="" disabled>
+                    Velg en kalender …
+                  </option>
+                  {availableCalendars.map((c) => (
+                    <option key={c.id} value={c.id}>
+                      {c.summary}
+                      {c.primary ? " (hoved)" : ""}
+                    </option>
+                  ))}
+                </select>
+                <br />
+              </div>
+            )}
+            <br />
+            <button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
               Lagre
             </button>
             {saved && <span> ✅ Lagret</span>}
           </form>
         ) : (
-          <p>Koble til Google-kalenderen din ovenfor for å velge kalender fra en liste.</p>
+          <p>
+            {connected
+              ? "Fant ingen kalendere å velge mellom."
+              : "Koble til Google-kalenderen din ovenfor for å velge kalender fra en liste."}
+          </p>
         )}
       </section>
     </main>
