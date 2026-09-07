@@ -231,6 +231,22 @@ class FamilyRepository(private val database: Database) {
         )
     }
 
+    /** Endrer navn/avatar på en hjelper. KUN rader med `isHelper = true` kan endres
+     * her — samme "kun hjelpere"-avgrensning som `removeHelper`. Scopet til
+     * `familyId`, så et forsøk på å endre en annen families hjelper ved å gjette
+     * en UUID er en no-op. Returnerer `null` hvis id-en ikke fantes, ikke var en
+     * hjelper, eller ikke tilhørte familien. */
+    fun updateHelper(familyId: UUID, parentId: UUID, name: String, avatar: String?): ParentRecord? = transaction(database) {
+        val updated = ParentsTable.update({
+            (ParentsTable.id eq parentId) and (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq true)
+        }) {
+            it[ParentsTable.name] = name
+            it[ParentsTable.avatar] = avatar
+        }
+        if (updated == 0) return@transaction null
+        ParentsTable.selectAll().where { ParentsTable.id eq parentId }.firstOrNull()?.toParentRecord()
+    }
+
     /** Fjerner en hjelper. KUN rader med `isHelper = true` kan fjernes her — det
      * finnes (fortsatt) ingen funksjon for å slette en ekte innlogget forelder.
      * Scopet til `familyId` (samme mønster som resten av repositoryet), så et

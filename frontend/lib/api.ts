@@ -148,6 +148,14 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
 
+  updateHelper: (id: string, input: { name: string; avatar?: string | null }) =>
+    fetch(`${API_BASE_URL}/api/family/helpers/${id}`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
+
   // Kaster hvis hjelperen fortsatt har tildelinger (409) — kalleren bør vise
   // feilmeldingen fra responsen i stedet for en generisk feil, se
   // HelpersManager.tsx.

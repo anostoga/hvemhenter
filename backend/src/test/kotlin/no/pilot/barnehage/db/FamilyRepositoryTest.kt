@@ -215,4 +215,44 @@ class FamilyRepositoryTest {
 
         transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
     }
+
+    @Test
+    fun `updateHelper endrer navn og avatar paa en hjelper`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Bestemor", "🐻")
+
+        val updated = repository.updateHelper(familyId, helper.id, "Bestemor Anne", "🐰")
+
+        assertEquals("Bestemor Anne", updated?.name)
+        assertEquals("🐰", updated?.avatar)
+        val reloaded = repository.findParent(helper.id)!!
+        assertEquals("Bestemor Anne", reloaded.name)
+        assertEquals("🐰", reloaded.avatar)
+
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
+
+    @Test
+    fun `updateHelper kan ikke endre en innlogget forelder`() {
+        createParent()
+
+        val updated = repository.updateHelper(familyId, parentId, "Nytt navn", null)
+
+        assertNull(updated)
+        assertEquals("Forelder", repository.findParent(parentId)!!.name, "forelderens navn skal være uendret")
+    }
+
+    @Test
+    fun `updateHelper er scopet til familien - kan ikke endre en annen families hjelper`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Fetter Per", null)
+        val otherFamilyId = UUID.randomUUID()
+
+        val updated = repository.updateHelper(otherFamilyId, helper.id, "Uvedkommende navn", null)
+
+        assertNull(updated)
+        assertEquals("Fetter Per", repository.findParent(helper.id)!!.name)
+
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
 }

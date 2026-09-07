@@ -9,6 +9,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.auth.SESSION_AUTH_NAME
 import no.pilot.barnehage.auth.userSession
@@ -22,6 +23,9 @@ data class FamilyResponse(val id: String, val inviteCode: String?)
 
 @Serializable
 data class AddHelperRequest(val name: String, val avatar: String? = null)
+
+@Serializable
+data class UpdateHelperRequest(val name: String, val avatar: String? = null)
 
 @Serializable
 data class HelperResponse(val id: String, val name: String, val avatar: String? = null)
@@ -58,6 +62,25 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
             }
             val helper = familyRepository.addHelper(familyId, trimmedName, request.avatar)
             call.respond(HttpStatusCode.Created, HelperResponse(id = helper.id.toString(), name = helper.name, avatar = helper.avatar))
+        }
+
+        put("/api/family/helpers/{id}") {
+            val session = call.userSession()!!
+            val familyId = UUID.fromString(session.familyId)
+            val helperId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
+            val request = call.receive<UpdateHelperRequest>()
+            val trimmedName = request.name.trim()
+            if (trimmedName.isBlank()) {
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("navn kan ikke være tomt"))
+            }
+            if (request.avatar != null && request.avatar !in ALLOWED_AVATARS) {
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig avatar"))
+            }
+
+            val updated = familyRepository.updateHelper(familyId, helperId, trimmedName, request.avatar)
+                ?: return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("hjelper ikke funnet"))
+            call.respond(HelperResponse(id = updated.id.toString(), name = updated.name, avatar = updated.avatar))
         }
 
         delete("/api/family/helpers/{id}") {
