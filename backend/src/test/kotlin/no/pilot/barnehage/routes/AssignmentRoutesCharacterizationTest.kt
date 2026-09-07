@@ -1,6 +1,7 @@
 package no.pilot.barnehage.routes
 
 import no.pilot.barnehage.domain.AssignmentType
+import no.pilot.barnehage.domain.Parent
 import no.pilot.barnehage.google.CalendarEventDateTime
 import no.pilot.barnehage.google.CalendarEventItem
 import kotlin.test.Test
@@ -72,5 +73,22 @@ class AssignmentRoutesCharacterizationTest {
     fun `hendelse uten dato eller dateTime gir null`() {
         val dt = CalendarEventDateTime(dateTime = null, date = null)
         assertNull(dt.toEpochMillis())
+    }
+
+    @Test
+    fun `excludeHelpers fjerner hjelpere, men beholder innloggede foreldre`() {
+        val mor = Parent(id = "1", name = "Mor", isHelper = false)
+        val bestemor = Parent(id = "2", name = "Bestemor", isHelper = true)
+        val far = Parent(id = "3", name = "Far", isHelper = false)
+
+        val result = excludeHelpers(listOf(mor, bestemor, far))
+
+        assertEquals(listOf(mor, far), result)
+    }
+
+    @Test
+    fun `excludeHelpers med kun hjelpere gir en tom liste`() {
+        val bestemor = Parent(id = "1", name = "Bestemor", isHelper = true)
+        assertEquals(emptyList(), excludeHelpers(listOf(bestemor)))
     }
 }

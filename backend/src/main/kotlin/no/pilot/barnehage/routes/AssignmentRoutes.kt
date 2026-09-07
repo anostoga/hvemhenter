@@ -89,7 +89,13 @@ fun Route.assignmentRoutes(
             val type = call.parameters["type"]?.let { AssignmentType.valueOf(it.uppercase()) }
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("type mangler (DROPOFF|PICKUP)"))
 
-            val parents = effectiveParents(familyRepository, tokenRepository, familyId)
+            // Hjelpere (isHelper = true, se FamilyRepository.addHelper) skal ALDRI
+            // foreslås automatisk — algoritmen under forutsetter dessuten nøyaktig
+            // to likestilte foreldre (rettferdig fordeling/round-robin mellom "de
+            // to"), noe som ikke gir mening for en hjelper. De er fortsatt fullt
+            // tilgjengelige for MANUELL tildeling (se /api/assign og /api/parents,
+            // som fortsatt returnerer alle, inkl. hjelpere, til select-en i /ukeplan).
+            val parents = excludeHelpers(effectiveParents(familyRepository, tokenRepository, familyId))
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val history = repo.all().map { it.toApiAssignment() }
             val busyByParent = fetchBusyPeriods(parents, date, calendarService, accessTokenProvider)
@@ -232,6 +238,16 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
             isHelper = parent.isHelper,
         )
     }
+
+/**
+ * Filtrerer bort hjelpere (se FamilyRepository.addHelper) fra en parent-liste —
+ * brukt FØR `assignmentService.suggest()` kalles i `/api/suggest`, slik at
+ * algoritmen (som forutsetter nøyaktig to likestilte foreldre, se
+ * AssignmentService) aldri kan foreslå en hjelper automatisk. Hjelpere er
+ * fortsatt fullt tilgjengelige for MANUELL tildeling (se `/api/assign` og
+ * `/api/parents`, som begge fortsatt returnerer alle, inkl. hjelpere).
+ */
+internal fun excludeHelpers(parents: List<Parent>): List<Parent> = parents.filterNot { it.isHelper }
 
 /**
  * Henter opptatte perioder PER FORELDER fra forelderens valgte TILGJENGELIGHETS-
