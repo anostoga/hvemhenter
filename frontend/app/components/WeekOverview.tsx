@@ -43,21 +43,23 @@ export function WeekOverview({ days, assignmentsByDay, parents }: WeekOverviewPr
   const today = todayIso();
 
   return (
-    <div className="flex flex-col items-stretch gap-2 sm:flex-row">
-      {days.map((date) => (
-        <div
-          className={`flex flex-1 flex-col gap-1.5 rounded-md border p-2 ${date === today ? "border-primary bg-accent" : "border-border"}`}
-          key={date}
-        >
-          <p className="m-0 font-semibold capitalize">{dayLabel(date)}</p>
-          {(Object.keys(TYPE_LABEL) as AssignmentType[]).map((type) => (
-            <div className="flex flex-col gap-1 rounded bg-muted p-2 text-sm" key={type}>
-              <p className="m-0 font-semibold text-foreground">{TYPE_LABEL[type]}</p>
-              <p className="m-0">{parentLabel(assignmentsByDay.get(date)?.[type], parents)}</p>
-            </div>
-          ))}
-        </div>
-      ))}
+    <div className="overflow-x-auto">
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row">
+        {days.map((date) => (
+          <div
+            className={`flex flex-1 flex-col gap-1.5 rounded-md border p-2 sm:min-w-[110px] ${date === today ? "border-primary bg-accent" : "border-border"}`}
+            key={date}
+          >
+            <p className="m-0 font-semibold capitalize">{dayLabel(date)}</p>
+            {(Object.keys(TYPE_LABEL) as AssignmentType[]).map((type) => (
+              <div className="flex flex-col gap-1 rounded bg-muted p-2 text-sm" key={type}>
+                <p className="m-0 font-semibold text-foreground">{TYPE_LABEL[type]}</p>
+                <p className="m-0 truncate">{parentLabel(assignmentsByDay.get(date)?.[type], parents)}</p>
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -68,18 +70,20 @@ const SLOTS = [0, 1];
 /** Suspense-fallback for `<WeekOverview>` — speiler strukturen uten knapperad. */
 export function WeekOverviewSkeleton() {
   return (
-    <div className="flex flex-col items-stretch gap-2 sm:flex-row">
-      {DAYS.map((day) => (
-        <div className="flex flex-1 flex-col gap-1.5 rounded-md border border-border p-2" key={day}>
-          <Skeleton className="h-5 w-20" />
-          {SLOTS.map((slot) => (
-            <div className="flex flex-col gap-1 rounded bg-muted p-2" key={slot}>
-              <Skeleton className="h-4 w-16" />
-              <Skeleton className="h-4 w-24" />
-            </div>
-          ))}
-        </div>
-      ))}
+    <div className="overflow-x-auto">
+      <div className="flex flex-col items-stretch gap-2 sm:flex-row">
+        {DAYS.map((day) => (
+          <div className="flex flex-1 flex-col gap-1.5 rounded-md border border-border p-2 sm:min-w-[110px]" key={day}>
+            <Skeleton className="h-5 w-20" />
+            {SLOTS.map((slot) => (
+              <div className="flex flex-col gap-1 rounded bg-muted p-2" key={slot}>
+                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-24" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

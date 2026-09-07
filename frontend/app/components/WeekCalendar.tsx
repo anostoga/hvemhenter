@@ -84,8 +84,11 @@ export function WeekCalendar({
           disabled={loading || past}
           onValueChange={(value) => onChangeAssignment(date, type, value === UNASSIGNED ? "" : value)}
         >
-          <SelectTrigger className="w-full min-h-[34px] text-[0.85rem]" aria-label={`${TYPE_LABEL[type]} ${dayLabel(date)}`}>
-            <SelectValue />
+          <SelectTrigger className="w-full min-w-0 min-h-[34px] text-[0.85rem]" aria-label={`${TYPE_LABEL[type]} ${dayLabel(date)}`}>
+            {/* min-w-0 + truncate: uten disse presser lange navn triggeren (og
+                dermed dag-boksen) bredere enn resten av uken, siden flex-barn
+                ellers ikke krymper under sitt eget innholds naturlige bredde. */}
+            <SelectValue className="min-w-0 truncate" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={UNASSIGNED}>Ikke tildelt</SelectItem>
