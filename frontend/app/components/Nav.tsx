@@ -72,6 +72,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
       <span className="flex flex-wrap items-center gap-4">
         {who.loggedIn ? (
           <>
+            <Link href="/">Forside</Link>
             <Link href="/ukeplan">Ukeplan</Link>
             <Link href="/familie">Familie</Link>
           </>
