@@ -23,7 +23,17 @@ data class Parent(
     /** Kalenderen forelderen henter TILGJENGELIGHET fra, hvis forskjellig fra
      * `calendarId`. Null betyr "samme kalender" (se ParentRecord.effectiveAvailabilityCalendarId). */
     val availabilityCalendarId: String? = null,
+    /** Eksplisitt "ikke sjekk tilgjengelighet i det hele tatt", atskilt fra
+     * `availabilityCalendarId = null` (som betyr "samme som calendarId"). */
+    val availabilityDisabled: Boolean = false,
 )
+
+/** Kalenderen som faktisk skal spørres for opptatte tider for denne
+ * forelderen — se `ParentRecord.effectiveAvailabilityCalendarId()` i
+ * db/FamilyRepository.kt for samme logikk på DB-laget. Konsolidert hit for
+ * å unngå at fallback-logikken driver fra hverandre i to implementasjoner. */
+fun Parent.effectiveAvailabilityCalendarId(): String? =
+    if (availabilityDisabled) null else (availabilityCalendarId ?: calendarId)
 
 @Serializable
 data class Assignment(

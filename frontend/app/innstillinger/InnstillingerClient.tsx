@@ -3,13 +3,23 @@
 import { useState } from "react";
 import { api, AvailableCalendar, MyCalendar } from "@/lib/api";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface InnstillingerClientProps {
   initialMyCalendar: MyCalendar;
   initialAvailableCalendars: AvailableCalendar[] | null;
+}
+
+/** De tre gjensidig utelukkende tilstandene for tilgjengelighetssjekk — se
+ * `effectiveAvailabilityCalendarId()` i backend (db/FamilyRepository.kt /
+ * domain/Models.kt) for hvordan disse tolkes server-side. */
+type AvailabilityMode = "same" | "custom" | "disabled";
+
+function modeFor(myCalendar: MyCalendar): AvailabilityMode {
+  if (myCalendar.availabilityDisabled) return "disabled";
+  if (myCalendar.availabilityCalendarId) return "custom";
+  return "same";
 }
 
 /**
@@ -28,15 +38,16 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
   const [myCalendar, setMyCalendar] = useState<MyCalendar | null>(initialMyCalendar);
   const [calendarInput, setCalendarInput] = useState(initialMyCalendar.calendarId ?? "");
   // Kalenderen tilgjengelighet (opptatte tider) hentes fra. Kun i bruk når
-  // `sameCalendarForBoth` er false — se checkboxen under.
+  // `availabilityMode === "custom"` — se modusvalget under.
   const [availabilityCalendarInput, setAvailabilityCalendarInput] = useState(
     initialMyCalendar.availabilityCalendarId ?? "",
   );
-  // Avkrysningsboksen: bruk SAMME kalender (calendarInput) til både skriving
-  // av tildelinger og henting av tilgjengelighet. Da sendes
-  // availabilityCalendarId = null til backend, som faller tilbake til
-  // calendarId (se CalendarRoutes.kt).
-  const [sameCalendarForBoth, setSameCalendarForBoth] = useState(initialMyCalendar.availabilityCalendarId == null);
+  // Tre gjensidig utelukkende valg: "same" (bruk skrivekalenderen, dagens
+  // standard), "custom" (en annen, spesifikt valgt kalender), eller
+  // "disabled" (ikke sjekk tilgjengelighet i det hele tatt — lar brukeren
+  // fjerne en tidligere valgt tilgjengelighetskalender-registrering ved å
+  // bytte bort fra "custom").
+  const [availabilityMode, setAvailabilityMode] = useState<AvailabilityMode>(modeFor(initialMyCalendar));
   // null = ikke tilkoblet Google ennå (eller henting feilet) — da kan ingen
   // kalender velges i det hele tatt (se meldingen i JSX under). Tom liste =
   // tilkoblet, men ingen kalendere funnet (uvanlig, samme fallback som null).
@@ -49,8 +60,9 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
     setError(null);
     setSaved(false);
     try {
-      const availabilityCalendarId = sameCalendarForBoth ? null : availabilityCalendarInput || null;
-      const c = await api.updateMyCalendar(calendarInput, availabilityCalendarId);
+      const availabilityDisabled = availabilityMode === "disabled";
+      const availabilityCalendarId = availabilityMode === "custom" ? availabilityCalendarInput || null : null;
+      const c = await api.updateMyCalendar(calendarInput, availabilityCalendarId, availabilityDisabled);
       setMyCalendar(c);
       setSaved(true);
     } catch (e) {
@@ -106,15 +118,21 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
               </Select>
             </div>
 
-            <Label className="flex items-center gap-2">
-              <Checkbox
-                checked={sameCalendarForBoth}
-                onCheckedChange={(checked) => setSameCalendarForBoth(checked === true)}
-              />
-              <span>Bruk samme kalender for tilgjengelighet og skriving av tildelinger</span>
-            </Label>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="availabilityModeSelect">Tilgjengelighetssjekk</Label>
+              <Select value={availabilityMode} onValueChange={(value) => setAvailabilityMode(value as AvailabilityMode)}>
+                <SelectTrigger id="availabilityModeSelect">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="same">Bruk samme kalender som for skriving av tildelinger</SelectItem>
+                  <SelectItem value="custom">Bruk en annen kalender for tilgjengelighet</SelectItem>
+                  <SelectItem value="disabled">Ikke sjekk tilgjengelighet automatisk</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-            {!sameCalendarForBoth && (
+            {availabilityMode === "custom" && (
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</Label>
                 <Select value={availabilityCalendarInput || undefined} onValueChange={setAvailabilityCalendarInput}>
@@ -134,7 +152,7 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
             )}
 
             <div className="flex items-center gap-2">
-              <Button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
+              <Button type="submit" disabled={!calendarInput || (availabilityMode === "custom" && !availabilityCalendarInput)}>
                 Lagre
               </Button>
               {saved && <span>✅ Lagret</span>}
@@ -151,3 +169,4 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
     </>
   );
 }
+

@@ -28,7 +28,7 @@ async function InnstillingerData() {
     // Backend nede/annen feil under SSR: fall tilbake til tomt skjema i
     // stedet for å la hele siden feile (samme fail-soft-filosofi som
     // getServerWhoAmI/de andre SSR-sidene).
-    myCalendar = { calendarId: null, availabilityCalendarId: null };
+    myCalendar = { calendarId: null, availabilityCalendarId: null, availabilityDisabled: false };
     availableCalendars = null;
   }
   return <InnstillingerClient initialMyCalendar={myCalendar} initialAvailableCalendars={availableCalendars} />;

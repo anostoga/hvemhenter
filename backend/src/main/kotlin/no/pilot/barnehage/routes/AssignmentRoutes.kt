@@ -21,6 +21,7 @@ import no.pilot.barnehage.domain.AssignmentSource
 import no.pilot.barnehage.domain.AssignmentType
 import no.pilot.barnehage.domain.BusyPeriod
 import no.pilot.barnehage.domain.Parent
+import no.pilot.barnehage.domain.effectiveAvailabilityCalendarId
 import no.pilot.barnehage.google.AccessTokenProvider
 import no.pilot.barnehage.google.CalendarEventDateTime
 import no.pilot.barnehage.google.CalendarEventItem
@@ -227,6 +228,7 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
             connected = tokenRepository.find(parent.id) != null,
             calendarId = parent.calendarId,
             availabilityCalendarId = parent.availabilityCalendarId,
+            availabilityDisabled = parent.availabilityDisabled,
         )
     }
 
@@ -248,7 +250,7 @@ private suspend fun fetchBusyPeriods(
     val (windowStartIso, windowEndIso) = isoWindow(date, "07:00", "17:30")
 
     return parents.associate { parent ->
-        val calendarId = parent.availabilityCalendarId ?: parent.calendarId
+        val calendarId = parent.effectiveAvailabilityCalendarId()
         val accessToken = if (calendarId.isNullOrBlank()) null else accessTokenProvider.getValidAccessToken(UUID.fromString(parent.id))
         val busy = if (accessToken == null || calendarId.isNullOrBlank()) {
             emptyList()

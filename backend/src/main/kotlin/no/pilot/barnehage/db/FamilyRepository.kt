@@ -20,12 +20,18 @@ data class ParentRecord(
     /** Kalenderen tilgjengelighet (opptatte tider) hentes fra. Null betyr "samme
      * som calendarId" — bruk `effectiveAvailabilityCalendarId()` for oppslag. */
     val availabilityCalendarId: String? = null,
+    /** Eksplisitt "ikke sjekk tilgjengelighet i det hele tatt", atskilt fra
+     * `availabilityCalendarId = null` (som betyr "samme som calendarId"). */
+    val availabilityDisabled: Boolean = false,
 )
 
-/** Kalenderen som faktisk skal spørres for opptatte tider — `availabilityCalendarId`
- * hvis forelderen har valgt en avvikende kalender, ellers `calendarId` (den
- * avkrysningsboksen "bruk samme kalender" på /innstillinger tilsvarer). */
-fun ParentRecord.effectiveAvailabilityCalendarId(): String? = availabilityCalendarId ?: calendarId
+/** Kalenderen som faktisk skal spørres for opptatte tider — `null` hvis
+ * forelderen eksplisitt har skrudd av tilgjengelighetssjekk
+ * (`availabilityDisabled`), ellers `availabilityCalendarId` hvis forelderen
+ * har valgt en avvikende kalender, ellers `calendarId` (den avkrysningsboksen
+ * "bruk samme kalender" på /innstillinger tilsvarer). */
+fun ParentRecord.effectiveAvailabilityCalendarId(): String? =
+    if (availabilityDisabled) null else (availabilityCalendarId ?: calendarId)
 
 /**
  * Oppslag/oppretting av familier og foreldre. Brukes av JoinRoutes (familieopprettelse
@@ -162,11 +168,21 @@ class FamilyRepository(private val database: Database) {
      * (valgfritt) en avvikende kalender for tilgjengelighetssjekk (se
      * CalendarRoutes) — samme "kun egen rad"-mønster som `updateProfile`,
      * `parentId` er alltid fra sesjonen. `availabilityCalendarId = null`
-     * betyr "bruk samme kalender som calendarId" (checkboxen i UI-et). */
-    fun updateParentCalendars(parentId: UUID, calendarId: String, availabilityCalendarId: String?) = transaction(database) {
+     * betyr "bruk samme kalender som calendarId" (checkboxen i UI-et).
+     * `availabilityDisabled = true` betyr "ikke sjekk tilgjengelighet i det
+     * hele tatt" — i så fall tvinges `availabilityCalendarId` til `null` her
+     * (normalisering) slik at databasen aldri havner i en selvmotsigende
+     * tilstand (både en spesifikk kalender OG "deaktivert" satt samtidig). */
+    fun updateParentCalendars(
+        parentId: UUID,
+        calendarId: String,
+        availabilityCalendarId: String?,
+        availabilityDisabled: Boolean = false,
+    ) = transaction(database) {
         ParentsTable.update({ ParentsTable.id eq parentId }) {
             it[ParentsTable.calendarId] = calendarId
-            it[ParentsTable.availabilityCalendarId] = availabilityCalendarId
+            it[ParentsTable.availabilityCalendarId] = if (availabilityDisabled) null else availabilityCalendarId
+            it[ParentsTable.availabilityDisabled] = availabilityDisabled
         }
     }
 
@@ -179,6 +195,7 @@ class FamilyRepository(private val database: Database) {
         avatar = this[ParentsTable.avatar],
         calendarId = this[ParentsTable.calendarId],
         availabilityCalendarId = this[ParentsTable.availabilityCalendarId],
+        availabilityDisabled = this[ParentsTable.availabilityDisabled],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

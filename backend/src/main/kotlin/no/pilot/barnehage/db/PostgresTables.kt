@@ -33,6 +33,10 @@ object ParentsTable : Table("parents") {
      * forskjellig fra `calendarId`. Null betyr "samme som calendarId" — se
      * V4-migrasjonen og checkboxen på /innstillinger. */
     val availabilityCalendarId = text("availability_calendar_id").nullable()
+    /** Eksplisitt "ikke sjekk tilgjengelighet i det hele tatt"-tilstand, atskilt
+     * fra `availabilityCalendarId = null` (som betyr "samme som calendarId") —
+     * se V5-migrasjonen. */
+    val availabilityDisabled = bool("availability_disabled").default(false)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }
