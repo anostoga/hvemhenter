@@ -88,38 +88,35 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
         )}
 
         {hasCalendars ? (
-          <form onSubmit={saveMyCalendar}>
-            <Label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</Label>
-            <br />
-            <Select value={calendarInput || undefined} onValueChange={setCalendarInput}>
-              <SelectTrigger id="calendarSelect">
-                <SelectValue placeholder="Velg en kalender …" />
-              </SelectTrigger>
-              <SelectContent>
-                {availableCalendars.map((c) => (
-                  <SelectItem key={c.id} value={c.id}>
-                    {c.summary}
-                    {c.primary ? " (hoved)" : ""}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <br />
-            <br />
-            <Label className="inline-flex items-center">
+          <form onSubmit={saveMyCalendar} className="flex flex-col gap-6">
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</Label>
+              <Select value={calendarInput || undefined} onValueChange={setCalendarInput}>
+                <SelectTrigger id="calendarSelect">
+                  <SelectValue placeholder="Velg en kalender …" />
+                </SelectTrigger>
+                <SelectContent>
+                  {availableCalendars.map((c) => (
+                    <SelectItem key={c.id} value={c.id}>
+                      {c.summary}
+                      {c.primary ? " (hoved)" : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <Label className="flex items-center gap-2">
               <Checkbox
                 checked={sameCalendarForBoth}
                 onCheckedChange={(checked) => setSameCalendarForBoth(checked === true)}
               />
-              <span className="ml-2">
-                Bruk samme kalender for tilgjengelighet og skriving av tildelinger
-              </span>
+              <span>Bruk samme kalender for tilgjengelighet og skriving av tildelinger</span>
             </Label>
-            <br />
+
             {!sameCalendarForBoth && (
-              <div className="mt-4">
+              <div className="flex flex-col gap-1.5">
                 <Label htmlFor="availabilityCalendarSelect">Kalender for tilgjengelighetsjekk</Label>
-                <br />
                 <Select value={availabilityCalendarInput || undefined} onValueChange={setAvailabilityCalendarInput}>
                   <SelectTrigger id="availabilityCalendarSelect">
                     <SelectValue placeholder="Velg en kalender …" />
@@ -133,14 +130,15 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
                     ))}
                   </SelectContent>
                 </Select>
-                <br />
               </div>
             )}
-            <br />
-            <Button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
-              Lagre
-            </Button>
-            {saved && <span> ✅ Lagret</span>}
+
+            <div className="flex items-center gap-2">
+              <Button type="submit" disabled={!calendarInput || (!sameCalendarForBoth && !availabilityCalendarInput)}>
+                Lagre
+              </Button>
+              {saved && <span>✅ Lagret</span>}
+            </div>
           </form>
         ) : (
           <p>
