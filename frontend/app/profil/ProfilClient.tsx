@@ -54,33 +54,38 @@ export default function ProfilClient({ initialProfile }: ProfilClientProps) {
 
   return (
     <>
-      {error && <p className="text-destructive">{error}</p>}
-      {saved && <p role="status">Lagret!</p>}
+      {error && <p className="mb-4 text-destructive">{error}</p>}
+      {saved && (
+        <p role="status" className="mb-4">
+          Lagret!
+        </p>
+      )}
 
-      <form onSubmit={handleSave}>
-        <Label htmlFor="displayName">Visningsnavn</Label>
-        <br />
-        <Input
-          id="displayName"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-        />
-        <br />
-        <br />
+      <form onSubmit={handleSave} className="flex flex-col gap-6">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="displayName">Visningsnavn</Label>
+          <Input
+            id="displayName"
+            className="max-w-xs"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+        </div>
 
-        <span id="avatarLabel">Avatar</span>
-        <br />
-        <span className="text-3xl leading-none" aria-labelledby="avatarLabel">
-          {avatar ?? "—"}
-        </span>{" "}
-        <Button type="button" variant="outline" onClick={() => setShowAvatarPicker(true)}>
-          Velg avatar
-        </Button>
-        <br />
-        <br />
+        <div className="flex flex-col gap-1.5">
+          <span id="avatarLabel">Avatar</span>
+          <div className="flex items-center gap-3">
+            <span className="text-3xl leading-none" aria-labelledby="avatarLabel">
+              {avatar ?? "—"}
+            </span>
+            <Button type="button" variant="outline" onClick={() => setShowAvatarPicker(true)}>
+              Velg avatar
+            </Button>
+          </div>
+        </div>
 
-        <Button type="submit" disabled={saving || !name.trim()}>
+        <Button type="submit" disabled={saving || !name.trim()} className="self-start">
           Lagre
         </Button>
       </form>

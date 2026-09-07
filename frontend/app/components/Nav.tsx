@@ -37,7 +37,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   }
 
   return (
-    <nav className="mb-4 flex flex-col gap-2 border-b border-border pb-4">
+    <nav className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2 font-semibold text-inherit no-underline">
           <Logo height={64} />
@@ -45,7 +45,10 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
         {who.loggedIn ? (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" className="h-auto min-h-0 border-none bg-transparent p-0 font-semibold text-inherit hover:underline hover:bg-transparent">
+              <Button
+                variant="ghost"
+                className="h-auto min-h-0 -mx-2 rounded-md border-none bg-transparent px-2 py-1 font-semibold text-inherit hover:bg-primary-foreground/15 hover:text-inherit aria-expanded:bg-primary-foreground/20 aria-expanded:text-inherit"
+              >
                 {who.avatar && <span aria-hidden="true">{who.avatar}</span>} {who.name ?? "deg"}
               </Button>
             </DropdownMenuTrigger>

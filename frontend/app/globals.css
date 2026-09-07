@@ -141,9 +141,12 @@
     @apply font-sans;
   }
   h1 {
-    @apply text-2xl;
+    @apply text-2xl mb-6;
+  }
+  h2 {
+    @apply text-lg font-semibold mb-3;
   }
   section {
-    @apply mb-8 rounded-lg border border-border p-4;
+    @apply mb-8;
   }
 }

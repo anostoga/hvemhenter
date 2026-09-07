@@ -4,6 +4,7 @@ import Link from "next/link";
 import { getServerFamily, getServerParents, UnauthorizedError } from "@/lib/server-api";
 import type { Family, Parent } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
+import { InviteCode } from "@/app/components/InviteCode";
 
 export const metadata = {
   title: "Familie — Barnehage-planlegger",
@@ -32,7 +33,7 @@ function FamilieSkeleton() {
         <h2>Inviter den andre forelderen</h2>
         <Skeleton className="h-5 w-full max-w-md" />
         <div className="mt-2">
-          <Skeleton className="h-6 w-32" />
+          <Skeleton className="h-12 w-48" />
         </div>
       </section>
     </>
@@ -81,9 +82,9 @@ async function FamilieData() {
               Gi denne koden til den andre forelderen — de skriver den inn på{" "}
               <Link href="/join">bli med i en familie</Link>-siden for å koble seg til familien din:
             </p>
-            <p>
-              <code>{family.inviteCode}</code>
-            </p>
+            <div className="mt-2">
+              <InviteCode code={family.inviteCode} />
+            </div>
           </>
         ) : (
           <p>Familien har allerede to foreldre — det finnes ingen aktiv invitasjonskode.</p>

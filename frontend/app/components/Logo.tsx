@@ -3,6 +3,12 @@
  * teksten "Hvem henter?" — rendres inline som JSX (ikke en statisk fil i
  * public/) siden den er liten og brukes ett sted, se Nav.tsx. `height`-propen
  * skalerer hele merket proporsjonalt (viewBox bevarer sideforholdet 620:200).
+ *
+ * Fargene er faste (ikke tema-avhengige) siden logoen kun vises i den grønne
+ * merkevarefargede toppmenyen (se Nav.tsx/layout.tsx): hodeomriss/hårlokk og
+ * ordmerketeksten bruker kremhvit (#FBF7EF) for lesbarhet mot den grønne
+ * bakgrunnen, mens øyne/smil beholder den mørke fargen (#2E2A25) siden de
+ * tegnes mot den lyse hudfargen, ikke mot bakgrunnen.
  */
 export function Logo({ height = 32 }: { height?: number }) {
   return (
@@ -18,12 +24,12 @@ export function Logo({ height = 32 }: { height?: number }) {
 
       <g transform="translate(1,23) scale(0.75)">
         {/* hode */}
-        <circle cx="100" cy="102" r="72" fill="#F7CBA4" stroke="#2E2A25" strokeWidth={5} />
+        <circle cx="100" cy="102" r="72" fill="#F7CBA4" stroke="#FBF7EF" strokeWidth={5} />
         {/* hårlokk */}
         <path
           d="M87 33 C79 19, 99 15, 103 29"
           fill="none"
-          stroke="#2E2A25"
+          stroke="#FBF7EF"
           strokeWidth={5}
           strokeLinecap="round"
         />
@@ -49,10 +55,10 @@ export function Logo({ height = 32 }: { height?: number }) {
         fontFamily="'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial, sans-serif"
         fontSize={54}
         fontWeight={700}
-        fill="#2E2A25"
+        fill="#FBF7EF"
         letterSpacing="-0.5"
       >
-        Hvem henter<tspan fill="#E8795A">?</tspan>
+        Hvem henter<tspan fill="#FFD9C2">?</tspan>
       </text>
     </svg>
   );
