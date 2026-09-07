@@ -75,7 +75,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button variant="outline" asChild>
+          <Button variant="ghost" asChild>
             <a className="no-underline" href={api.loginUrl()}>Logg inn</a>
           </Button>
         )}
