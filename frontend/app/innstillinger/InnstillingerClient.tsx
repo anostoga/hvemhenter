@@ -6,6 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
+/** Sentinel-verdi for "skriv ikke tildelinger til noen kalender" i
+ * kalender-Select-en — Radix Select tillater ikke en tom streng som verdi,
+ * så vi mapper mellom dette og den faktiske `calendarInput`-state-en
+ * (`""` = ingen kalender valgt) i onValueChange/value-props. */
+const NO_CALENDAR = "__none__";
+
 interface InnstillingerClientProps {
   initialMyCalendar: MyCalendar;
   initialAvailableCalendars: AvailableCalendar[] | null;
@@ -62,7 +68,7 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
     try {
       const availabilityDisabled = availabilityMode === "disabled";
       const availabilityCalendarId = availabilityMode === "custom" ? availabilityCalendarInput || null : null;
-      const c = await api.updateMyCalendar(calendarInput, availabilityCalendarId, availabilityDisabled);
+      const c = await api.updateMyCalendar(calendarInput || null, availabilityCalendarId, availabilityDisabled);
       setMyCalendar(c);
       setSaved(true);
     } catch (e) {
@@ -94,8 +100,7 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
         <h2>Min kalender</h2>
         {myCalendar && !myCalendar.calendarId && (
           <p role="alert">
-            ⚠️ Ingen kalender er valgt ennå — dine tildelinger opprettes IKKE som kalenderhendelser
-            før du har lagret en kalender her.
+            ⚠️ Ingen kalender er valgt — dine tildelinger opprettes ikke som kalenderhendelser.
           </p>
         )}
 
@@ -103,11 +108,15 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
           <form onSubmit={saveMyCalendar} className="flex flex-col gap-6">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="calendarSelect">Kalender som oppdateres med tildelinger</Label>
-              <Select value={calendarInput || undefined} onValueChange={setCalendarInput}>
+              <Select
+                value={calendarInput || NO_CALENDAR}
+                onValueChange={(value) => setCalendarInput(value === NO_CALENDAR ? "" : value)}
+              >
                 <SelectTrigger id="calendarSelect">
-                  <SelectValue placeholder="Velg en kalender …" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NO_CALENDAR}>Skriv ikke til noen kalender</SelectItem>
                   {availableCalendars.map((c) => (
                     <SelectItem key={c.id} value={c.id}>
                       {c.summary}
@@ -152,7 +161,7 @@ export default function InnstillingerClient({ initialMyCalendar, initialAvailabl
             )}
 
             <div className="flex items-center gap-2">
-              <Button type="submit" disabled={!calendarInput || (availabilityMode === "custom" && !availabilityCalendarInput)}>
+              <Button type="submit" disabled={availabilityMode === "custom" && !availabilityCalendarInput}>
                 Lagre
               </Button>
               {saved && <span>✅ Lagret</span>}

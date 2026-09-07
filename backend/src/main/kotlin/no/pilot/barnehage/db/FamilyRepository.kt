@@ -167,15 +167,18 @@ class FamilyRepository(private val database: Database) {
     /** Setter forelderens egen valgte kalender for skriving av tildelinger, og
      * (valgfritt) en avvikende kalender for tilgjengelighetssjekk (se
      * CalendarRoutes) — samme "kun egen rad"-mønster som `updateProfile`,
-     * `parentId` er alltid fra sesjonen. `availabilityCalendarId = null`
-     * betyr "bruk samme kalender som calendarId" (checkboxen i UI-et).
-     * `availabilityDisabled = true` betyr "ikke sjekk tilgjengelighet i det
-     * hele tatt" — i så fall tvinges `availabilityCalendarId` til `null` her
-     * (normalisering) slik at databasen aldri havner i en selvmotsigende
-     * tilstand (både en spesifikk kalender OG "deaktivert" satt samtidig). */
+     * `parentId` er alltid fra sesjonen. `calendarId = null` betyr "skriv ikke
+     * tildelinger til noen kalender" (se AssignmentRoutes, som allerede
+     * degraderer gracefully til "ingen kalenderhendelse opprettes" i det
+     * tilfellet). `availabilityCalendarId = null` betyr "bruk samme kalender
+     * som calendarId" (checkboxen i UI-et). `availabilityDisabled = true`
+     * betyr "ikke sjekk tilgjengelighet i det hele tatt" — i så fall tvinges
+     * `availabilityCalendarId` til `null` her (normalisering) slik at
+     * databasen aldri havner i en selvmotsigende tilstand (både en
+     * spesifikk kalender OG "deaktivert" satt samtidig). */
     fun updateParentCalendars(
         parentId: UUID,
-        calendarId: String,
+        calendarId: String?,
         availabilityCalendarId: String?,
         availabilityDisabled: Boolean = false,
     ) = transaction(database) {

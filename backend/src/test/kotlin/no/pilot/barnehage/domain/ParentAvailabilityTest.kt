@@ -52,4 +52,14 @@ class ParentAvailabilityTest {
 
         assertNull(parent.effectiveAvailabilityCalendarId())
     }
+
+    @Test
+    fun `uten skrivekalender og uten avvikende tilgjengelighetskalender gir null`() {
+        // Brukeren har valgt å ikke skrive til noen kalender (calendarId = null) og
+        // ikke satt noen egen tilgjengelighetskalender — degraderer til "ingen
+        // kalender å spørre", samme fail-soft som når ingenting er konfigurert ennå.
+        val parent = Parent(id = "p1", name = "Forelder", calendarId = null, availabilityCalendarId = null)
+
+        assertNull(parent.effectiveAvailabilityCalendarId())
+    }
 }

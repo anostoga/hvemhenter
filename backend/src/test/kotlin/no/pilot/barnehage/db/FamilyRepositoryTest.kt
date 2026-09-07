@@ -15,9 +15,11 @@ import kotlin.test.assertNull
  * Dekker `updateParentCalendars`/`effectiveAvailabilityCalendarId()` mot en
  * ekte lokal Postgres — spesielt normaliseringen som hindrer at en forelder
  * havner i en selvmotsigende tilstand (både en spesifikk
- * tilgjengelighetskalender OG "deaktivert" satt samtidig), og at
+ * tilgjengelighetskalender OG "deaktivert" satt samtidig), at
  * `availabilityDisabled = true` faktisk lar en tidligere valgt
- * tilgjengelighetskalender-registrering fjernes.
+ * tilgjengelighetskalender-registrering fjernes, og at `calendarId` selv kan
+ * settes til `null` (brukeren velger å ikke skrive tildelinger til noen
+ * kalender i det hele tatt).
  */
 class FamilyRepositoryTest {
     private val database = Database.connect(
@@ -116,5 +118,30 @@ class FamilyRepositoryTest {
         val parent = repository.findParent(parentId)!!
         assertNull(parent.availabilityCalendarId)
         assertEquals(true, parent.availabilityDisabled)
+    }
+
+    @Test
+    fun `calendarId kan settes til null - brukeren velger aa ikke skrive til noen kalender`() {
+        createParent()
+
+        repository.updateParentCalendars(parentId, null, null)
+
+        val parent = repository.findParent(parentId)!!
+        assertNull(parent.calendarId)
+        // Uten en skrivekalender degraderer tilgjengelighetssjekken naturlig til
+        // null også (ingen fallback-kalender å falle tilbake på) — samme
+        // fail-soft-oppførsel som når forelderen aldri har valgt noen kalender.
+        assertNull(parent.effectiveAvailabilityCalendarId())
+    }
+
+    @Test
+    fun `en tidligere valgt skrivekalender kan fjernes ved aa sette calendarId til null`() {
+        createParent()
+        repository.updateParentCalendars(parentId, "skrive-kalender", null)
+        assertEquals("skrive-kalender", repository.findParent(parentId)!!.calendarId)
+
+        repository.updateParentCalendars(parentId, null, null)
+
+        assertNull(repository.findParent(parentId)!!.calendarId)
     }
 }

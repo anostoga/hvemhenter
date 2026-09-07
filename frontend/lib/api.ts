@@ -139,7 +139,7 @@ export const api = {
   getMyCalendar: () =>
     fetch(`${API_BASE_URL}/api/calendars/mine`, { credentials: "include" }).then((r) => handle<MyCalendar>(r)),
 
-  updateMyCalendar: (calendarId: string, availabilityCalendarId: string | null, availabilityDisabled: boolean = false) =>
+  updateMyCalendar: (calendarId: string | null, availabilityCalendarId: string | null, availabilityDisabled: boolean = false) =>
     fetch(`${API_BASE_URL}/api/calendars/mine`, {
       method: "PUT",
       credentials: "include",

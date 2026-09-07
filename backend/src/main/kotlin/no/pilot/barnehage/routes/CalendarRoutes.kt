@@ -20,7 +20,7 @@ import java.util.UUID
 data class MyCalendarResponse(val calendarId: String?, val availabilityCalendarId: String?, val availabilityDisabled: Boolean = false)
 
 @Serializable
-data class UpdateMyCalendarRequest(val calendarId: String, val availabilityCalendarId: String? = null, val availabilityDisabled: Boolean = false)
+data class UpdateMyCalendarRequest(val calendarId: String? = null, val availabilityCalendarId: String? = null, val availabilityDisabled: Boolean = false)
 
 @Serializable
 data class AvailableCalendarResponse(val id: String, val summary: String, val primary: Boolean)
@@ -55,9 +55,11 @@ fun Route.calendarRoutes(
             val session = call.userSession()!!
             val parentId = UUID.fromString(session.parentId)
             val request = call.receive<UpdateMyCalendarRequest>()
-            if (request.calendarId.isBlank()) {
-                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("calendarId mangler"))
-            }
+            // Tom/manglende streng betyr eksplisitt "skriv ikke tildelinger til noen
+            // kalender" — en gyldig, vedvarende brukervalgt tilstand (se AssignmentRoutes,
+            // som allerede degraderer til "ingen kalenderhendelse opprettes" når
+            // calendarId er null), ikke lenger en feil.
+            val calendarId = request.calendarId?.takeIf { it.isNotBlank() }
             // Tom streng betyr "ikke valgt" for tilgjengelighetskalenderen (samme som
             // avkrysningsboksen "bruk samme kalender" i UI-et) — lagres som null,
             // ikke som en tom streng, slik at effectiveAvailabilityCalendarId() faller
@@ -65,11 +67,11 @@ fun Route.calendarRoutes(
             // `updateParentCalendars` uansett bort en ev. medsendt availabilityCalendarId,
             // slik at databasen aldri havner i en selvmotsigende tilstand.
             val availabilityCalendarId = request.availabilityCalendarId?.takeIf { it.isNotBlank() }
-            familyRepository.updateParentCalendars(parentId, request.calendarId, availabilityCalendarId, request.availabilityDisabled)
+            familyRepository.updateParentCalendars(parentId, calendarId, availabilityCalendarId, request.availabilityDisabled)
             call.respond(
                 HttpStatusCode.OK,
                 MyCalendarResponse(
-                    calendarId = request.calendarId,
+                    calendarId = calendarId,
                     availabilityCalendarId = if (request.availabilityDisabled) null else availabilityCalendarId,
                     availabilityDisabled = request.availabilityDisabled,
                 ),
