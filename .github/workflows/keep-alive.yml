@@ -1,0 +1,25 @@
+name: Supabase keep-alive
+
+# Supabase sitt gratis-tier pauser prosjektet automatisk etter ~7 dager uten
+# trafikk (påfølgende "unpause" tar typisk et minutt eller mer). Denne
+# workflowen kjører uavhengig av Fly.io sin scale-to-zero (backend/fly.toml
+# har fortsatt `min_machines_running = 0` — vi ofrer IKKE den kostnadsbesparelsen)
+# og treffer kun /ready (som gjør et ekte `SELECT 1` mot Postgres, se
+# plugins/Routing.kt), med god margin (hver 3. dag) til 7-dagersgrensen.
+# Kjøres via GitHub Actions' gratis cron-minutter — ingen ekstra kostnad.
+on:
+  schedule:
+    - cron: "0 6 */3 * *"
+  workflow_dispatch: {}
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pinger backend /ready (holder Supabase-prosjektet aktivt)
+        run: |
+          # -f feiler bygget (og varsler) hvis backend/Supabase faktisk er nede,
+          # i stedet for å feile stille.
+          curl -fsS --max-time 30 "${BACKEND_URL}/ready"
+        env:
+          BACKEND_URL: https://barnehage-backend.fly.dev
