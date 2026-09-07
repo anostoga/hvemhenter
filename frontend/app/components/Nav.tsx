@@ -2,6 +2,7 @@
 
 import { api, WhoAmI } from "@/lib/api";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Logo } from "./Logo";
 import { Button } from "@/components/ui/button";
 import {
@@ -30,6 +31,16 @@ import {
  */
 export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   const who = initialWho;
+  const pathname = usePathname();
+
+  // Understreker menyvalget for siden man står på (f.eks. Ukeplan når man er
+  // på /ukeplan), i tillegg til den generelle lenke-understrekingen fra
+  // globals.css (som disse elementene ellers opter ut av via .no-underline).
+  // Eksakt match på pathname — ingen prefiks-matching, siden f.eks. "/" ikke
+  // skal fremstå som aktiv når man er på "/ukeplan".
+  function navLinkClassName(href: string) {
+    return pathname === href ? "underline underline-offset-2" : "no-underline";
+  }
 
   async function handleLogout() {
     await api.logout();
@@ -72,9 +83,9 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
       <span className="flex flex-wrap items-center gap-4">
         {who.loggedIn ? (
           <>
-            <Link href="/" className="no-underline">Forside</Link>
-            <Link href="/ukeplan" className="no-underline">Ukeplan</Link>
-            <Link href="/familie" className="no-underline">Familie</Link>
+            <Link href="/" className={navLinkClassName("/")}>Forside</Link>
+            <Link href="/ukeplan" className={navLinkClassName("/ukeplan")}>Ukeplan</Link>
+            <Link href="/familie" className={navLinkClassName("/familie")}>Familie</Link>
           </>
         ) : (
           <>
