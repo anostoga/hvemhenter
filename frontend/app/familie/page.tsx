@@ -5,15 +5,17 @@ import { getServerFamily, getServerParents, UnauthorizedError } from "@/lib/serv
 import type { Family, Parent } from "@/lib/api";
 import { Skeleton } from "@/components/ui/skeleton";
 import { InviteCode } from "@/app/components/InviteCode";
+import HelpersManager from "@/app/familie/HelpersManager";
 
 export const metadata = {
   title: "Familie — Barnehage-planlegger",
 };
 
 /**
- * Suspense-fallback som speiler den ekte seksjon-strukturen under (medlemsliste
- * + invitasjonskode) — se `FamilieData` for hvorfor SSR-hentingen må ligge i
- * en egen async komponent for at `<Suspense>` skal ha noe å vente på.
+ * Suspense-fallback som speiler den ekte seksjon-strukturen under
+ * (medlemsliste, hjelpere + invitasjonskode) — se `FamilieData` for hvorfor
+ * SSR-hentingen må ligge i en egen async komponent for at `<Suspense>` skal
+ * ha noe å vente på.
  */
 function FamilieSkeleton() {
   return (
@@ -30,6 +32,10 @@ function FamilieSkeleton() {
         </ul>
       </section>
       <section>
+        <h2>Hjelpere</h2>
+        <Skeleton className="h-5 w-full max-w-md" />
+      </section>
+      <section>
         <h2>Inviter den andre forelderen</h2>
         <Skeleton className="h-5 w-full max-w-md" />
         <div className="mt-2">
@@ -41,10 +47,11 @@ function FamilieSkeleton() {
 }
 
 /**
- * Egen async komponent for selve SSR-hentingen (foreldre + invitasjonskode)
- * — siden har ingen mutasjoner/interaktivitet i det hele tatt (ren visning),
- * så det trengs ingen client-komponent-splitting slik som i /ukeplan og
- * /profil: denne komponenten rendrer det ekte innholdet direkte.
+ * Egen async komponent for selve SSR-hentingen (foreldre + invitasjonskode).
+ * Selve mutasjonene (legg til/fjern hjelper) skjer i `<HelpersManager>`
+ * (client-komponent) — se den filen for begrunnelsen, samme mønster som
+ * ProfilClient/InnstillingerClient. Invitasjons-seksjonen under er fortsatt
+ * ren visning uten interaktivitet.
  */
 async function FamilieData() {
   let parents: Parent[];
@@ -63,16 +70,7 @@ async function FamilieData() {
 
   return (
     <>
-      <section>
-        <h2>Medlemmer</h2>
-        <ul>
-          {parents.map((p) => (
-            <li key={p.id}>
-              {p.name}: {p.connected ? "✅ tilkoblet Google Kalender" : "ikke tilkoblet Google Kalender ennå"}
-            </li>
-          ))}
-        </ul>
-      </section>
+      <HelpersManager initialParents={parents} />
 
       <section>
         <h2>Inviter den andre forelderen</h2>
@@ -95,15 +93,16 @@ async function FamilieData() {
 }
 
 /**
- * Viser hvem som er med i familien (parents fra /api/parents) og
- * invitasjonskoden andre trenger for å bli med (family.inviteCode). Koden er
- * engangsbruk og blir `null` server-side så snart familien har fått forelder
- * #2 — da er det ingen kode igjen å vise.
+ * Viser hvem som er med i familien (parents fra /api/parents, både innloggede
+ * foreldre og hjelpere) og invitasjonskoden andre trenger for å bli med
+ * (family.inviteCode). Koden er engangsbruk og blir `null` server-side så
+ * snart familien har fått forelder #2 — da er det ingen kode igjen å vise.
  *
- * Ren visning, ingen mutasjoner — hele siden er derfor en Server Component
- * (ingen "use client" nødvendig), med data hentet server-side via
- * `getServerParents`/`getServerFamily` (se lib/server-api.ts) og strømmet inn
- * gjennom en ekte `<Suspense>`-grense mens `<FamilieSkeleton>` vises.
+ * Selve siden er en Server Component (data hentet server-side via
+ * `getServerParents`/`getServerFamily`, se lib/server-api.ts, strømmet inn
+ * gjennom en ekte `<Suspense>`-grense mens `<FamilieSkeleton>` vises) — kun
+ * legg til/fjern-hjelper-delen er en client-komponent (`<HelpersManager>`),
+ * se den filen.
  */
 export default function FamiliePage() {
   return (

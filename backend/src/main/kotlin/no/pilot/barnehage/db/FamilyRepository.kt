@@ -1,6 +1,8 @@
 package no.pilot.barnehage.db
 
 import org.jetbrains.exposed.sql.Database
+import org.jetbrains.exposed.sql.and
+import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -11,8 +13,10 @@ data class FamilyRecord(val id: UUID, val sharedCalendarId: String, val inviteCo
 data class ParentRecord(
     val id: UUID,
     val familyId: UUID,
-    val googleSub: String,
-    val email: String,
+    /** Null for hjelpere (`isHelper = true`) — de logger aldri inn. */
+    val googleSub: String?,
+    /** Null for hjelpere, samme begrunnelse som `googleSub`. */
+    val email: String?,
     val name: String,
     val avatar: String? = null,
     /** Forelderens egen valgte kalender for skriving av tildelinger (se /api/calendars/mine). */
@@ -23,6 +27,9 @@ data class ParentRecord(
     /** Eksplisitt "ikke sjekk tilgjengelighet i det hele tatt", atskilt fra
      * `availabilityCalendarId = null` (som betyr "samme som calendarId"). */
     val availabilityDisabled: Boolean = false,
+    /** Sant for en "hjelper" (typisk en slektning) — kan tildeles levering/henting,
+     * men logger aldri inn selv og teller ikke mot maks-2-foreldre-grensen. */
+    val isHelper: Boolean = false,
 )
 
 /** Kalenderen som faktisk skal spørres for opptatte tider — `null` hvis
@@ -65,24 +72,32 @@ class FamilyRepository(private val database: Database) {
             .firstOrNull()?.toFamilyRecord()
     }
 
-    /** Antall foreldre i familien — brukt til å håndheve maks 2 foreldre per familie. */
+    /** Antall INNLOGGEDE foreldre i familien — brukt til å håndheve maks 2 foreldre
+     * per familie. Teller aldri hjelpere (`isHelper = true`, se addHelper) — de har
+     * ingen egen innloggingsgrense. */
     fun parentCount(familyId: UUID): Long = transaction(database) {
-        ParentsTable.selectAll().where { ParentsTable.familyId eq familyId }.count()
+        ParentsTable.selectAll()
+            .where { (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq false) }
+            .count()
     }
 
-    /** Alle foreldre i familien — brukt av /api/parents og forslagslogikken. */
+    /** Alle foreldre OG hjelpere i familien — brukt av /api/parents, forslagslogikken
+     * og tildeling (begge typer kan tildeles levering/henting likt, se
+     * AssignmentRoutes/effectiveParents). */
     fun findParents(familyId: UUID): List<ParentRecord> = transaction(database) {
         ParentsTable.selectAll().where { ParentsTable.familyId eq familyId }.map { it.toParentRecord() }
     }
 
-    /** Finner en familie som fortsatt har plass (< 2 foreldre) opprettet via
-     * FAMILY_CREATION_CODE — brukt til å la samme kode brukes av begge foreldre
-     * uten at de ender opp i hver sin (tomme) familie. */
+    /** Finner en familie som fortsatt har plass (< 2 INNLOGGEDE foreldre, hjelpere
+     * teller ikke) opprettet via FAMILY_CREATION_CODE — brukt til å la samme kode
+     * brukes av begge foreldre uten at de ender opp i hver sin (tomme) familie. */
     fun findFamilyWithRoom(): FamilyRecord? = transaction(database) {
         FamiliesTable.selectAll()
             .map { it.toFamilyRecord() }
             .firstOrNull { family ->
-                ParentsTable.selectAll().where { ParentsTable.familyId eq family.id }.count() < 2
+                ParentsTable.selectAll()
+                    .where { (ParentsTable.familyId eq family.id) and (ParentsTable.isHelper eq false) }
+                    .count() < 2
             }
     }
 
@@ -113,7 +128,9 @@ class FamilyRepository(private val database: Database) {
     /** Legger en forelder direkte til en gitt familie (brukt når FAMILY_CREATION_CODE
      * gjenbrukes av forelder #2 — familien er allerede kjent, ingen invite_code involvert). */
     fun addParentToFamily(familyId: UUID, googleSub: String, email: String, name: String): ParentRecord? = transaction(database) {
-        val existingParents = ParentsTable.selectAll().where { ParentsTable.familyId eq familyId }.count()
+        val existingParents = ParentsTable.selectAll()
+            .where { (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq false) }
+            .count()
         if (existingParents >= 2) return@transaction null
 
         val parentId = ParentsTable.insert {
@@ -137,7 +154,9 @@ class FamilyRepository(private val database: Database) {
         val family = FamiliesTable.selectAll().where { FamiliesTable.inviteCode eq inviteCode }
             .firstOrNull()?.toFamilyRecord() ?: return@transaction null
 
-        val existingParents = ParentsTable.selectAll().where { ParentsTable.familyId eq family.id }.count()
+        val existingParents = ParentsTable.selectAll()
+            .where { (ParentsTable.familyId eq family.id) and (ParentsTable.isHelper eq false) }
+            .count()
         if (existingParents >= 2) return@transaction null // familien er allerede full
 
         val parentId = ParentsTable.insert {
@@ -189,6 +208,48 @@ class FamilyRepository(private val database: Database) {
         }
     }
 
+    /** Legger en "hjelper" til familien — en person (typisk en slektning) som kan
+     * tildeles levering/henting akkurat som en innlogget forelder (se
+     * AssignmentRoutes/effectiveParents), men som ALDRI logger inn selv: ingen
+     * `googleSub`/`email`, ingen kalender-tilkobling er mulig for denne raden.
+     * Teller ikke mot maks-2-foreldre-grensen (se `parentCount`). */
+    fun addHelper(familyId: UUID, name: String, avatar: String?): ParentRecord = transaction(database) {
+        val parentId = ParentsTable.insert {
+            it[ParentsTable.familyId] = familyId
+            it[ParentsTable.name] = name
+            it[ParentsTable.avatar] = avatar
+            it[ParentsTable.isHelper] = true
+        }[ParentsTable.id]
+        ParentRecord(
+            id = parentId,
+            familyId = familyId,
+            googleSub = null,
+            email = null,
+            name = name,
+            avatar = avatar,
+            isHelper = true,
+        )
+    }
+
+    /** Fjerner en hjelper. KUN rader med `isHelper = true` kan fjernes her — det
+     * finnes (fortsatt) ingen funksjon for å slette en ekte innlogget forelder.
+     * Scopet til `familyId` (samme mønster som resten av repositoryet), så et
+     * forsøk på å fjerne en annen families hjelper ved å gjette en UUID er en
+     * no-op. Returnerer `false` hvis id-en ikke fantes, ikke var en hjelper,
+     * eller ikke tilhørte familien. Kalleren er ansvarlig for å sjekke at
+     * hjelperen ikke har eksisterende tildelinger FØR dette kalles (se
+     * FamilyRoutes) — denne metoden håndhever ikke det selv, ellers ville
+     * `parents`-tabellens manglende `on delete cascade` for tildelinger gitt en
+     * rå FK-feil i stedet for en forståelig 409. */
+    fun removeHelper(familyId: UUID, parentId: UUID): Boolean = transaction(database) {
+        val deleted = ParentsTable.deleteWhere {
+            org.jetbrains.exposed.sql.Op.build {
+                (ParentsTable.id eq parentId) and (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq true)
+            }
+        }
+        deleted > 0
+    }
+
     private fun org.jetbrains.exposed.sql.ResultRow.toParentRecord() = ParentRecord(
         id = this[ParentsTable.id],
         familyId = this[ParentsTable.familyId],
@@ -199,6 +260,7 @@ class FamilyRepository(private val database: Database) {
         calendarId = this[ParentsTable.calendarId],
         availabilityCalendarId = this[ParentsTable.availabilityCalendarId],
         availabilityDisabled = this[ParentsTable.availabilityDisabled],
+        isHelper = this[ParentsTable.isHelper],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

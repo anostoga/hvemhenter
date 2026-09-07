@@ -10,6 +10,9 @@ export interface Parent {
   connected: boolean;
   calendarId: string | null;
   availabilityCalendarId: string | null;
+  // Sann for en "hjelper" (typisk en slektning) som kan tildeles levering/henting,
+  // men aldri logger inn selv — se backend domain/Models.kt.
+  isHelper: boolean;
 }
 
 export interface Assignment {
@@ -133,6 +136,36 @@ export const api = {
   },
 
   getFamily: () => fetch(`${API_BASE_URL}/api/family`, { credentials: "include" }).then((r) => handle<Family>(r)),
+
+  // "Hjelpere" — personer (typisk slektninger) som kan tildeles levering/henting,
+  // men aldri logger inn selv. Dukker opp i /api/parents (getParents) på lik
+  // linje med innloggede foreldre etter oppretting — se backend FamilyRoutes.
+  addHelper: (input: { name: string; avatar?: string | null }) =>
+    fetch(`${API_BASE_URL}/api/family/helpers`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(input),
+    }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
+
+  // Kaster hvis hjelperen fortsatt har tildelinger (409) — kalleren bør vise
+  // feilmeldingen fra responsen i stedet for en generisk feil, se
+  // HelpersManager.tsx.
+  removeHelper: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/family/helpers/${id}`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (response.status === 401) {
+      window.location.href = "/";
+      throw new Error("ikke innlogget");
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+    // 204 No Content — ingen body å parse
+  },
 
   // Kalenderen er nå knyttet til DEN INNLOGGEDE BRUKEREN selv, ikke hele
   // familien — tildelinger denne brukeren er satt opp med skrives dit.

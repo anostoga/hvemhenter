@@ -117,4 +117,20 @@ class FamilyScopedAssignmentRepositoryTest {
         assertEquals(1, all.size, "skal fortsatt bare være én rad for datoen/typen")
         assertEquals(parentB, all.first().parentId)
     }
+
+    @Test
+    fun `hasAssignmentsForParent er sann naar personen har en tildeling, usann ellers`() {
+        val repoA = FamilyScopedAssignmentRepository(familyA, database)
+
+        assertEquals(false, repoA.hasAssignmentsForParent(parentA))
+
+        repoA.insert(LocalDate.of(2026, 8, 31), "DROPOFF", parentA, "MANUAL", null)
+
+        assertEquals(true, repoA.hasAssignmentsForParent(parentA))
+        assertEquals(
+            false,
+            repoA.hasAssignmentsForParent(parentB),
+            "parentB har ingen tildeling i familie A (og tilhører uansett familie B)",
+        )
+    }
 }

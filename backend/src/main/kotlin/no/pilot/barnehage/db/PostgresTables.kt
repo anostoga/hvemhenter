@@ -21,8 +21,10 @@ object FamiliesTable : Table("families") {
 object ParentsTable : Table("parents") {
     val id = uuid("id").clientDefault { UUID.randomUUID() }
     val familyId = uuid("family_id").references(FamiliesTable.id)
-    val googleSub = text("google_sub").uniqueIndex()
-    val email = text("email")
+    /** Null for hjelpere (`isHelper = true`) — de logger aldri inn, se V6-migrasjonen. */
+    val googleSub = text("google_sub").uniqueIndex().nullable()
+    /** Null for hjelpere, samme begrunnelse som `googleSub`. */
+    val email = text("email").nullable()
     val name = text("name")
     val avatar = text("avatar").nullable()
     /** Google-kalenderen DENNE forelderen selv har valgt (se /api/calendars/mine)
@@ -37,6 +39,11 @@ object ParentsTable : Table("parents") {
      * fra `availabilityCalendarId = null` (som betyr "samme som calendarId") —
      * se V5-migrasjonen. */
     val availabilityDisabled = bool("availability_disabled").default(false)
+    /** Sant for "hjelpere" — personer (typisk slektninger) som kan tildeles
+     * levering/henting, men aldri logger inn selv (se V6-migrasjonen). Skiller
+     * disse fra ekte innloggede foreldre der det trengs, bl.a.
+     * maks-2-innloggede-foreldre-grensen (se FamilyRepository). */
+    val isHelper = bool("is_helper").default(false)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }

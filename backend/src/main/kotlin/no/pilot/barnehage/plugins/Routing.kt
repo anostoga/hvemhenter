@@ -59,7 +59,7 @@ fun Application.configureRouting(database: Database) {
 
         authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository)
         joinRoutes(oauthClient, stateSigner, familyRepository)
-        familyRoutes(familyRepository)
+        familyRoutes(familyRepository, database)
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)

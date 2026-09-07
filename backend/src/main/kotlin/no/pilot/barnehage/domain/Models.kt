@@ -26,6 +26,10 @@ data class Parent(
     /** Eksplisitt "ikke sjekk tilgjengelighet i det hele tatt", atskilt fra
      * `availabilityCalendarId = null` (som betyr "samme som calendarId"). */
     val availabilityDisabled: Boolean = false,
+    /** Sant for en "hjelper" (typisk en slektning) — kan tildeles levering/henting,
+     * men logger aldri inn selv og har ingen kalender-tilkobling (se
+     * FamilyRepository.addHelper). */
+    val isHelper: Boolean = false,
 )
 
 /** Kalenderen som faktisk skal spørres for opptatte tider for denne

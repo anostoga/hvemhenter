@@ -102,6 +102,19 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.id eq id) } }
     }
 
+    /** Finnes det noen tildelinger (historiske eller fremtidige) for denne
+     * personen i familien? Brukt av FamilyRoutes til å avvise fjerning av en
+     * hjelper som fortsatt har tildelinger — `parents.id` har ingen
+     * `on delete cascade` fra `assignments`, så en rå sletting ville gitt en
+     * kryptisk FK-feil i stedet for en forståelig 409. */
+    fun hasAssignmentsForParent(parentId: UUID): Boolean = transaction(database) {
+        AssignmentsTable
+            .selectAll()
+            .where { (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.parentId eq parentId) }
+            .limit(1)
+            .any()
+    }
+
     /** Kun til bruk i tester/nullstilling — rammer utelukkende `familyId`
      * repositoryet ble instansiert med, aldri andre familier. */
     fun deleteAllForThisFamily() = transaction(database) {

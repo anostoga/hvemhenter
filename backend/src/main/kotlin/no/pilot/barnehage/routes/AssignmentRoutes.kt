@@ -229,6 +229,7 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
             calendarId = parent.calendarId,
             availabilityCalendarId = parent.availabilityCalendarId,
             availabilityDisabled = parent.availabilityDisabled,
+            isHelper = parent.isHelper,
         )
     }
 

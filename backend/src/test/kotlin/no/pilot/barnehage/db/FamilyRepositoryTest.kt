@@ -144,4 +144,75 @@ class FamilyRepositoryTest {
 
         assertNull(repository.findParent(parentId)!!.calendarId)
     }
+
+    @Test
+    fun `addHelper oppretter en hjelper uten googleSub eller email`() {
+        createParent() // sørger for familyId er satt (via createParent) — sletter i tearDown
+        val helper = repository.addHelper(familyId, "Bestemor", "🐻")
+
+        assertEquals(true, helper.isHelper)
+        assertNull(helper.googleSub)
+        assertNull(helper.email)
+        assertEquals("Bestemor", helper.name)
+        assertEquals("🐻", helper.avatar)
+
+        val reloaded = repository.findParent(helper.id)!!
+        assertEquals(true, reloaded.isHelper)
+        assertNull(reloaded.googleSub)
+
+        // Rydd opp den ekstra hjelper-raden selv, siden testklassens @AfterTest kun
+        // sletter `parentId` (den vanlige forelderen created av createParent()).
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
+
+    @Test
+    fun `hjelpere telles ikke med i parentCount`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Bestefar", null)
+
+        assertEquals(1, repository.parentCount(familyId), "kun den innloggede forelderen skal telle, ikke hjelperen")
+
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
+
+    @Test
+    fun `findParents inkluderer baade innloggede foreldre og hjelpere`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Tante Kari", null)
+
+        val all = repository.findParents(familyId)
+
+        assertEquals(2, all.size)
+        assertEquals(setOf(parentId, helper.id), all.map { it.id }.toSet())
+
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
+
+    @Test
+    fun `removeHelper fjerner kun hjelpere, ikke innloggede foreldre`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Onkel Ola", null)
+
+        val removedHelper = repository.removeHelper(familyId, helper.id)
+        val removedParent = repository.removeHelper(familyId, parentId)
+
+        assertEquals(true, removedHelper, "en ekte hjelper skal kunne fjernes")
+        assertEquals(false, removedParent, "en innlogget forelder skal IKKE kunne fjernes via removeHelper")
+        assertNull(repository.findParent(helper.id))
+        assertEquals(parentId, repository.findParent(parentId)!!.id, "forelderen skal fortsatt finnes")
+    }
+
+    @Test
+    fun `removeHelper er scopet til familien - kan ikke fjerne en annen families hjelper`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Fetter Per", null)
+        val otherFamilyId = UUID.randomUUID() // finnes ikke i databasen — nok til å bevise scopingen
+
+        val removed = repository.removeHelper(otherFamilyId, helper.id)
+
+        assertEquals(false, removed)
+        assertEquals(helper.id, repository.findParent(helper.id)!!.id, "hjelperen skal fortsatt finnes")
+
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
 }

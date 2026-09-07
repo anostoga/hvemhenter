@@ -4,7 +4,10 @@ Hobbyprosjekt for å fordele levering/henting i barnehagen mellom foreldre,
 med automatiske forslag basert på tidligere fordeling og ledig tid i Google
 Kalender. Familien bruker én delt kalender for de faktiske
 levering/henting-hendelsene. Flere familier kan bruke appen samtidig — hver
-familie ser kun sine egne data (maks 2 foreldre per familie).
+familie ser kun sine egne data (maks 2 innloggede foreldre per familie).
+En familie kan i tillegg legge til "hjelpere" (typisk besteforeldre/andre
+slektninger) som kan tildeles levering/henting uten å logge inn i appen selv
+(se `/familie`).
 
 ## Arkitektur
 
