@@ -149,4 +149,12 @@
   section {
     @apply mb-8;
   }
+  /* Gjør lenker i sideinnhold tydelig understreket, siden Tailwinds
+     preflight nullstiller text-decoration (arves fra body). Uten dette
+     skiller ikke lenker seg visuelt fra vanlig tekst. Navigasjonsmenyen
+     (Nav.tsx) har egen visuell stil (hover/aktiv-tilstand) og opts ut med
+     .no-underline, se der. */
+  a:not(.no-underline) {
+    @apply underline underline-offset-2;
+  }
 }

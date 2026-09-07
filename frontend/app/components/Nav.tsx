@@ -54,10 +54,10 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
               <DropdownMenuItem asChild>
-                <Link href="/profil">Profil</Link>
+                <Link href="/profil" className="no-underline">Profil</Link>
               </DropdownMenuItem>
               <DropdownMenuItem asChild>
-                <Link href="/innstillinger">Innstillinger</Link>
+                <Link href="/innstillinger" className="no-underline">Innstillinger</Link>
               </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem onClick={handleLogout}>Logg ut</DropdownMenuItem>
@@ -65,20 +65,20 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
           </DropdownMenu>
         ) : (
           <Button variant="outline" asChild>
-            <a href={api.loginUrl()}>Logg inn</a>
+            <a className="no-underline" href={api.loginUrl()}>Logg inn</a>
           </Button>
         )}
       </div>
       <span className="flex flex-wrap items-center gap-4">
         {who.loggedIn ? (
           <>
-            <Link href="/">Forside</Link>
-            <Link href="/ukeplan">Ukeplan</Link>
-            <Link href="/familie">Familie</Link>
+            <Link href="/" className="no-underline">Forside</Link>
+            <Link href="/ukeplan" className="no-underline">Ukeplan</Link>
+            <Link href="/familie" className="no-underline">Familie</Link>
           </>
         ) : (
           <>
-            <Link href="/join">Bli med i en familie</Link>
+            <Link href="/join" className="no-underline">Bli med i en familie</Link>
             {process.env.NODE_ENV !== "production" && (
               // Kun synlig i lokal dev (npm run dev) — lar deg teste innlogging uten en
               // ekte Google-klient. Krever i tillegg MOCK_GOOGLE_AUTH=true i backend/.env,
@@ -86,7 +86,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
               // i dev uavhengig av det flagget — /auth/mock-login svarer selv 404 hvis
               // MOCK_GOOGLE_AUTH ikke er satt på backend-siden. Vanlig <a> (ikke Link),
               // siden dette er en ekte backend-rute, ikke en Next.js-side.
-              <a href="/auth/mock-login">Mock-innlogging (dev)</a>
+              <a className="no-underline" href="/auth/mock-login">Mock-innlogging (dev)</a>
             )}
           </>
         )}
