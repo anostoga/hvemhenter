@@ -90,10 +90,20 @@ export default async function LandingPage() {
       {who.loggedIn ? (
         <section>
           <h2>Denne uken</h2>
+          {/* Kun mobil: ukens dager stables i en høy kolonne (se
+              WeekOverview/WeekCalendar sin `flex-col sm:flex-row`), så
+              redigeringslenken plasseres her — rett under overskriften — i
+              stedet for etter hele uke-listen, slik at den er synlig uten
+              scrolling. Fra sm og opp vises den i stedet nedenfor listen
+              (se paragrafen etter <Suspense>), siden dagene da ligger side
+              om side og listen ikke er like høy. */}
+          <p className="mt-2 sm:hidden">
+            <Link href="/ukeplan">Gå til ukeplan for å endre</Link>
+          </p>
           <Suspense fallback={<WeekOverviewSkeleton />}>
             <ThisWeekData />
           </Suspense>
-          <p className="mt-2">
+          <p className="mt-2 hidden sm:block">
             <Link href="/ukeplan">Gå til ukeplan for å endre</Link>
           </p>
         </section>
