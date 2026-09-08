@@ -8,6 +8,8 @@ import { Label } from "@/components/ui/label";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -52,6 +54,11 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Hjelperen brukeren har bedt om å fjerne, mens vi venter på bekreftelse i
+  // modalen (se `requestRemove`/`confirmRemove` under) — selve slettingen
+  // (`handleRemove`) skjer først når brukeren bekrefter, samme mønster som
+  // "Nullstill uken" i KalenderClient.tsx.
+  const [pendingRemove, setPendingRemove] = useState<Parent | null>(null);
 
   const members = parents.filter((p) => !p.isHelper);
   const helpers = parents.filter((p) => p.isHelper);
@@ -117,6 +124,20 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
     }
   }
 
+  // Åpner bekreftelsesmodalen i stedet for å slette med en gang.
+  function requestRemove(helper: Parent) {
+    setPendingRemove(helper);
+  }
+
+  function confirmRemove() {
+    if (pendingRemove) handleRemove(pendingRemove.id);
+    setPendingRemove(null);
+  }
+
+  function cancelRemove() {
+    setPendingRemove(null);
+  }
+
   return (
     <>
       <section>
@@ -140,19 +161,19 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
         {error && <p className="text-destructive">{error}</p>}
 
         {helpers.length > 0 && (
-          <ul className="mb-4">
+          <ul className="m-2">
             {helpers.map((h) => (
               <li key={h.id} className="flex items-center gap-2">
                 {h.avatar && <span aria-hidden="true">{h.avatar}</span>} {h.name}
-                <Button type="button" variant="ghost" size="sm" onClick={() => openEditDialog(h)}>
+                <Button type="button" variant="default" size="lg" onClick={() => openEditDialog(h)}>
                   Rediger
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
-                  size="sm"
+                  size="lg"
                   disabled={removingId === h.id}
-                  onClick={() => handleRemove(h.id)}
+                  onClick={() => requestRemove(h)}
                 >
                   Fjern
                 </Button>
@@ -215,6 +236,35 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
               </Button>
             </form>
           )}
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={pendingRemove !== null}
+        onOpenChange={(open) => {
+          if (!open) cancelRemove();
+        }}
+      >
+        <DialogContent aria-label="Bekreft fjerning av hjelper">
+          <DialogHeader>
+            <DialogTitle>Fjerne {pendingRemove?.name}?</DialogTitle>
+            <DialogDescription>
+              Dette fjerner hjelperen fra familien. Hjelperen kan ikke lenger tildeles levering/henting.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={cancelRemove}>
+              Avbryt
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              disabled={removingId === pendingRemove?.id}
+              onClick={confirmRemove}
+            >
+              Fjern
+            </Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>

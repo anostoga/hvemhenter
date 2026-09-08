@@ -132,7 +132,7 @@ export function WeekCalendar({
               <WeekBlockSkeleton />
             ) : (
               <>
-                <div className="mb-1.5 flex flex-wrap gap-2">
+                <div className="mb-2 flex flex-wrap gap-2">
                   <Button
                     disabled={loading || weekIsPast || weekFullyAssigned}
                     onClick={() => onGenerateWeekPlan(week)}
