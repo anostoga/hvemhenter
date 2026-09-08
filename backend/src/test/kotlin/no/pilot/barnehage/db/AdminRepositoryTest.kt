@@ -91,6 +91,26 @@ class AdminRepositoryTest {
     }
 
     @Test
+    fun `sletting av en familie opprettet via admin-kode blokkeres ikke av invite_codes-raden`() {
+        Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
+        val adminSub = sub()
+        handleJoin("riktig-kode", adminSub, "admin@example.com", "Admin", familyRepository)
+        val admin = familyRepository.findParentByGoogleSub(adminSub)!!
+        val created = adminRepository.createInviteCode(admin.id)
+
+        val newParentSub = sub()
+        val newFamilyId = handleJoin(created.code, newParentSub, "b@example.com", "B", familyRepository, adminRepository)!!
+
+        // Skal ikke kaste (regresjonstest for FK-en fikset i V8-migrasjonen —
+        // se invite_codes_used_by_family_id_fkey, tidligere ON DELETE NO ACTION).
+        familyRepository.deleteFamily(UUID.fromString(newFamilyId))
+
+        val afterDelete = adminRepository.listInviteCodes().first { it.code == created.code }
+        assertNotNull(afterDelete.usedAt, "koden skal fortsatt vise som brukt")
+        assertNull(afterDelete.usedByFamilyId, "koblingen til den slettede familien skal være nullet ut (ON DELETE SET NULL)")
+    }
+
+    @Test
     fun `stats teller familier og brukere uten a telle hjelpere`() {
         Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
         val familiesBefore = adminRepository.countFamilies()

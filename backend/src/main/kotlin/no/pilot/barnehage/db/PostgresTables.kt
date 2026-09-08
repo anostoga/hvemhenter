@@ -61,7 +61,12 @@ object InviteCodesTable : Table("invite_codes") {
     val createdBy = uuid("created_by").references(ParentsTable.id)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     val usedAt = timestamp("used_at").nullable()
-    val usedByFamilyId = uuid("used_by_family_id").references(FamiliesTable.id).nullable()
+    /** ON DELETE SET NULL, se V8-migrasjonen — hele familien kan slettes
+     * (f.eks. siste forelder sletter kontoen sin) uten at denne (historiske)
+     * invite_codes-raden blokkerer slettingen. */
+    val usedByFamilyId = uuid("used_by_family_id")
+        .references(FamiliesTable.id, onDelete = org.jetbrains.exposed.sql.ReferenceOption.SET_NULL)
+        .nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
