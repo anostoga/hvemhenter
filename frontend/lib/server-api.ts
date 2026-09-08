@@ -9,7 +9,7 @@
 // `bhg_logged_in`-cookien ble fjernet igjen til fordel for denne løsningen,
 // nettopp for å unngå personopplysninger i en klientlesbar cookie).
 import { cookies } from "next/headers";
-import type { Assignment, AvailableCalendar, Family, MyCalendar, Parent, Profile, WhoAmI } from "./api";
+import type { Assignment, AdminInviteCode, AdminStats, AvailableCalendar, Family, MyCalendar, Parent, Profile, WhoAmI } from "./api";
 
 // Samme fallback som next.config.mjs sin rewrite-konfigurasjon. Brukes her i
 // stedet for en relativ URL/rewrite fordi denne kjører SERVER-til-server (i
@@ -59,6 +59,14 @@ export async function getServerWhoAmI(): Promise<WhoAmI> {
  */
 export class UnauthorizedError extends Error {}
 
+/**
+ * Kastes av `serverFetch` når backend svarer 403 — brukt av /admin (se
+ * app/admin/page.tsx) til å skille "ikke innlogget" (401, `UnauthorizedError`)
+ * fra "innlogget, men ikke admin" (403): sistnevnte skal redirecte til
+ * forsiden i stedet for å prøve å logge inn på nytt.
+ */
+export class ForbiddenError extends Error {}
+
 async function cookieHeader(): Promise<string> {
   const cookieStore = await cookies();
   return cookieStore
@@ -78,12 +86,22 @@ async function serverFetch<T>(path: string): Promise<T> {
   });
 
   if (response.status === 401) throw new UnauthorizedError();
+  if (response.status === 403) throw new ForbiddenError();
   if (!response.ok) {
     const body = await response.text();
     throw new Error(`API-kall feilet (${response.status}): ${body}`);
   }
   return response.json() as Promise<T>;
 }
+
+/**
+ * Henter admin-statistikk (antall familier/brukere) + invitasjonskoder
+ * server-side for /admin — se AdminRoutes.kt. Kaster `ForbiddenError` (403)
+ * hvis innlogget bruker ikke er admin, `UnauthorizedError` (401) hvis ikke
+ * innlogget i det hele tatt — se app/admin/page.tsx for håndteringen.
+ */
+export const getServerAdminStats = () => serverFetch<AdminStats>("/api/admin/stats");
+export const getServerAdminInviteCodes = () => serverFetch<AdminInviteCode[]>("/api/admin/invite-codes");
 
 /**
  * Henter foreldre + tildelinger server-side for førstelasting av
@@ -108,7 +126,6 @@ export const getServerProfile = () => serverFetch<Profile>("/api/profile");
 
 /** Henter innlogget brukers egen kalendertilkobling server-side for /innstillinger. */
 export const getServerMyCalendar = () => serverFetch<MyCalendar>("/api/calendars/mine");
-
 /**
  * Henter listen over kalendere brukeren kan velge mellom server-side for
  * /innstillinger. I motsetning til de andre `getServer*`-funksjonene kaster

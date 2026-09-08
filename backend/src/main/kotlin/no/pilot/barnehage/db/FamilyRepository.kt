@@ -30,6 +30,9 @@ data class ParentRecord(
     /** Sant for en "hjelper" (typisk en slektning) — kan tildeles levering/henting,
      * men logger aldri inn selv og teller ikke mot maks-2-foreldre-grensen. */
     val isHelper: Boolean = false,
+    /** Sant for en admin — se ParentsTable.isAdmin/AdminRoutes.kt. Alltid `false`
+     * for hjelpere (de logger aldri inn, og kan derfor aldri nå en admin-rute). */
+    val isAdmin: Boolean = false,
 )
 
 /** Kalenderen som faktisk skal spørres for opptatte tider — `null` hvis
@@ -297,6 +300,19 @@ class FamilyRepository(private val database: Database) {
         FamiliesTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { FamiliesTable.id eq familyId } }
     }
 
+    /** Setter admin-status for en forelder. Kalles kun fra AuthRoutes rett etter
+     * innlogging, når e-posten er listet i ADMIN_EMAILS (se `isConfiguredAdminEmail`)
+     * — degraderer aldri en eksisterende admin automatisk (kalleren sjekker kun
+     * `isAdmin == false` før den kaller denne med `true`, se AuthRoutes), så en
+     * admin satt manuelt i databasen mister ikke statusen ved neste innlogging
+     * selv om ADMIN_EMAILS skulle mangle e-posten deres.
+     */
+    fun setAdmin(parentId: UUID, isAdmin: Boolean) = transaction(database) {
+        ParentsTable.update({ ParentsTable.id eq parentId }) {
+            it[ParentsTable.isAdmin] = isAdmin
+        }
+    }
+
     private fun org.jetbrains.exposed.sql.ResultRow.toParentRecord() = ParentRecord(
         id = this[ParentsTable.id],
         familyId = this[ParentsTable.familyId],
@@ -308,6 +324,7 @@ class FamilyRepository(private val database: Database) {
         availabilityCalendarId = this[ParentsTable.availabilityCalendarId],
         availabilityDisabled = this[ParentsTable.availabilityDisabled],
         isHelper = this[ParentsTable.isHelper],
+        isAdmin = this[ParentsTable.isAdmin],
     )
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyRecord() = FamilyRecord(

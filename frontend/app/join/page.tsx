@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,24 @@ function NotRegisteredNotice() {
       bli med i en familie.
     </p>
   );
+}
+
+/**
+ * Forhåndsutfyller kode-feltet fra `?code=`-query-parameteren (se
+ * AdminClient.tsx sin "Kopier lenke"-knapp, som lenker til `/join?code=...`)
+ * — brukeren trenger da ikke å skrive inn koden selv. Egen komponent (i
+ * stedet for å lese `useSearchParams()` direkte i `JoinPage`) fordi
+ * `useSearchParams()` krever en `<Suspense>`-grense i Next.js, se
+ * `NotRegisteredNotice` over for samme mønster.
+ */
+function CodeFromQuery({ onCode }: { onCode: (code: string) => void }) {
+  const params = useSearchParams();
+  const codeParam = params.get("code");
+  useEffect(() => {
+    if (codeParam) onCode(codeParam);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codeParam]);
+  return null;
 }
 
 export default function JoinPage() {
@@ -37,6 +55,9 @@ export default function JoinPage() {
       <h1>Bli med i en familie</h1>
       <Suspense fallback={null}>
         <NotRegisteredNotice />
+      </Suspense>
+      <Suspense fallback={null}>
+        <CodeFromQuery onCode={setCode} />
       </Suspense>
       <p>Skriv inn koden du har fått for å opprette en ny familie, eller invitasjonskoden fra den andre forelderen.</p>
       <form onSubmit={handleSubmit}>

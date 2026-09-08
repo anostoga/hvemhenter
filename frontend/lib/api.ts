@@ -55,6 +55,20 @@ export interface WhoAmI {
   loggedIn: boolean;
   name?: string;
   avatar?: string | null;
+  isAdmin?: boolean;
+}
+
+export interface AdminStats {
+  familyCount: number;
+  userCount: number;
+  helperCount: number;
+}
+
+export interface AdminInviteCode {
+  code: string;
+  createdAt: string;
+  usedAt: string | null;
+  usedByFamilyId: string | null;
 }
 
 export interface Profile {
@@ -234,4 +248,21 @@ export const api = {
     }
     // 204 No Content — ingen body å parse
   },
+
+  // Admin-kall — krever isAdmin (se AdminRoutes.kt), gir 403 hvis ikke. `handle()`
+  // dekker kun 401 spesielt (send til "/"); 403 kastes som en vanlig feil som
+  // AdminClient.tsx fanger opp og viser/redirecter fra selv (se der).
+  getAdminStats: () =>
+    fetch(`${API_BASE_URL}/api/admin/stats`, { credentials: "include" }).then((r) => handle<AdminStats>(r)),
+
+  getAdminInviteCodes: () =>
+    fetch(`${API_BASE_URL}/api/admin/invite-codes`, { credentials: "include" }).then((r) =>
+      handle<AdminInviteCode[]>(r),
+    ),
+
+  createAdminInviteCode: () =>
+    fetch(`${API_BASE_URL}/api/admin/invite-codes`, {
+      method: "POST",
+      credentials: "include",
+    }).then((r) => handle<AdminInviteCode>(r)),
 };

@@ -86,6 +86,9 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
             <Link href="/" className={navLinkClassName("/")}>Forside</Link>
             <Link href="/ukeplan" className={navLinkClassName("/ukeplan")}>Ukeplan</Link>
             <Link href="/familie" className={navLinkClassName("/familie")}>Familie</Link>
+            {who.isAdmin && (
+              <Link href="/admin" className={navLinkClassName("/admin")}>Admin</Link>
+            )}
           </>
         ) : (
           <>

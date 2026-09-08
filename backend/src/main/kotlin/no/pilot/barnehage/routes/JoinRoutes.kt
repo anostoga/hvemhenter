@@ -10,6 +10,7 @@ import io.ktor.server.routing.get
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.Env
 import no.pilot.barnehage.crypto.StateSigner
+import no.pilot.barnehage.db.AdminRepository
 import no.pilot.barnehage.db.FamilyRepository
 import no.pilot.barnehage.google.GoogleOAuthClient
 import java.security.SecureRandom
@@ -47,6 +48,7 @@ fun Route.joinRoutes(
     oauthClient: GoogleOAuthClient,
     stateSigner: StateSigner,
     familyRepository: FamilyRepository,
+    adminRepository: AdminRepository? = null,
 ) {
     get("/join/start") {
         val code = call.parameters["code"]
@@ -61,7 +63,9 @@ fun Route.joinRoutes(
         // ugyldige koder). Selve autorativ validering skjer likevel i handleJoin()
         // etter innlogging — denne sjekken er kun en snarvei, ikke sikkerhetsgrensen.
         val familyCreationCode = Env.get("FAMILY_CREATION_CODE")
-        val looksValid = code == familyCreationCode || familyRepository.findFamilyByInviteCode(code) != null
+        val looksValid = code == familyCreationCode ||
+            familyRepository.findFamilyByInviteCode(code) != null ||
+            adminRepository?.findUnusedInviteCode(code) != null
         if (!looksValid) {
             return@get call.respond(HttpStatusCode.BadRequest, JoinErrorResponse("ugyldig kode"))
         }
@@ -84,7 +88,14 @@ fun Route.joinRoutes(
  * responsen skal IKKE avsløre hvilken av de to årsakene det var (unngå å lekke
  * hvorvidt en kode "nesten" var gyldig).
  */
-fun handleJoin(code: String, googleSub: String, email: String, name: String, familyRepository: FamilyRepository): String? {
+fun handleJoin(
+    code: String,
+    googleSub: String,
+    email: String,
+    name: String,
+    familyRepository: FamilyRepository,
+    adminRepository: AdminRepository? = null,
+): String? {
     val familyCreationCode = Env.get("FAMILY_CREATION_CODE")
 
     if (familyCreationCode != null && code == familyCreationCode) {
@@ -113,6 +124,25 @@ fun handleJoin(code: String, googleSub: String, email: String, name: String, fam
 
     val existingParent = familyRepository.findParentByGoogleSub(googleSub)
     if (existingParent != null) return existingParent.familyId.toString()
+
+    // Admin-generert engangskode (se AdminRoutes/AdminRepository) — OPPRETTER alltid
+    // en helt ny familie (i motsetning til FAMILY_CREATION_CODE, blir den ALDRI
+    // gjenbrukt av forelder #2 for en "familie med ledig plass"), og markeres brukt
+    // med det samme slik at den ikke kan gjenbrukes (engangsbruk, samme mønster som
+    // families.invite_code).
+    val adminCode = adminRepository?.findUnusedInviteCode(code)
+    if (adminCode != null) {
+        val inviteCode = generateInviteCode()
+        val parent = familyRepository.createFamilyWithFirstParent(
+            sharedCalendarId = "",
+            inviteCode = inviteCode,
+            googleSub = googleSub,
+            email = email,
+            name = name,
+        )
+        adminRepository.markInviteCodeUsed(adminCode.id, parent.familyId)
+        return parent.familyId.toString()
+    }
 
     val joined = familyRepository.joinFamilyWithInviteCode(code, googleSub, email, name) ?: return null
     return joined.familyId.toString()

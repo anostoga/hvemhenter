@@ -28,12 +28,29 @@ import java.util.UUID
 @Serializable
 data class ErrorResponse(val error: String)
 
+/** Sjekker om e-posten er listet i `ADMIN_EMAILS` (komma-separert, case-insensitive)
+ * — eneste måte en bruker blir admin automatisk (ellers må `is_admin` settes
+ * direkte i databasen). Kalles rett etter vellykket innlogging, se kallstedene
+ * under (`promoteToAdminIfConfigured`). */
+private fun isConfiguredAdminEmail(email: String): Boolean =
+    Env.get("ADMIN_EMAILS")?.split(",")?.map { it.trim().lowercase() }?.contains(email.lowercase()) == true
+
+/** Degraderer aldri en admin — kalles ubetinget etter innlogging, men gjør kun
+ * noe hvis forelderen IKKE allerede er admin OG e-posten står i `ADMIN_EMAILS`.
+ * En admin satt manuelt i databasen (eller fjernet fra `ADMIN_EMAILS` senere)
+ * mister derfor aldri statusen ved neste innlogging. */
+private fun FamilyRepository.promoteToAdminIfConfigured(parent: no.pilot.barnehage.db.ParentRecord) {
+    if (!parent.isAdmin && parent.email != null && isConfiguredAdminEmail(parent.email)) {
+        setAdmin(parent.id, true)
+    }
+}
+
 /** Svar fra /auth/whoami — brukt av frontend til å vise riktig meny (innlogget/ikke)
  * uten å måtte kalle et familie-scopet API-endepunkt under /api (som ville 401 for uinnloggede
  * og dermed tvinge frem en redirect). Navnet her er brukerens eget, hentet fra databasen
  * via parentId i sesjonen — IKKE lagret i selve cookien (se UserSession/SessionAuth.kt). */
 @Serializable
-data class WhoAmIResponse(val loggedIn: Boolean, val name: String? = null, val avatar: String? = null)
+data class WhoAmIResponse(val loggedIn: Boolean, val name: String? = null, val avatar: String? = null, val isAdmin: Boolean = false)
 
 /**
  * Offentlige ruter som må fungere for BÅDE innloggede og uinnloggede uten å svare 401,
@@ -51,7 +68,7 @@ fun Route.registerWhoAmIAndLogout(familyRepository: FamilyRepository) {
             return@get
         }
         val parent = familyRepository.findParent(UUID.fromString(session.parentId))
-        call.respond(HttpStatusCode.OK, WhoAmIResponse(loggedIn = true, name = parent?.name, avatar = parent?.avatar))
+        call.respond(HttpStatusCode.OK, WhoAmIResponse(loggedIn = true, name = parent?.name, avatar = parent?.avatar, isAdmin = parent?.isAdmin == true))
     }
 
     // Å logge ut når man allerede er logget ut skal bare være en no-op, ikke en feil.
@@ -77,6 +94,7 @@ fun Route.registerMockGoogleLogin(
     tokenRepository: TokenRepository,
     frontendSuccessUrl: String,
     frontendJoinUrl: String,
+    adminRepository: no.pilot.barnehage.db.AdminRepository? = null,
 ) {
     get("/auth/mock-login") {
         val name = call.parameters["name"]
@@ -90,7 +108,7 @@ fun Route.registerMockGoogleLogin(
         val mockGoogleSub = "mock:$email"
 
         val familyId = if (code != null) {
-            handleJoin(code, mockGoogleSub, email, name, familyRepository)
+            handleJoin(code, mockGoogleSub, email, name, familyRepository, adminRepository)
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
         } else {
             familyRepository.findParentByGoogleSub(mockGoogleSub)?.familyId?.toString()
@@ -99,6 +117,7 @@ fun Route.registerMockGoogleLogin(
 
         val parent = familyRepository.findParentByGoogleSub(mockGoogleSub)
             ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet feil i mock-innlogging"))
+        familyRepository.promoteToAdminIfConfigured(parent)
 
         // Fiktive tokens — ekte Google Calendar-kall vil feile med disse (forventet:
         // det er nettopp POENGET med mock-modus at ingen ekte Google-kall skjer).
@@ -148,6 +167,7 @@ fun Route.authRoutes(
     frontendSuccessUrl: String,
     frontendJoinUrl: String,
     familyRepository: FamilyRepository,
+    adminRepository: no.pilot.barnehage.db.AdminRepository? = null,
 ) {
     registerWhoAmIAndLogout(familyRepository)
 
@@ -163,7 +183,7 @@ fun Route.authRoutes(
     // Kun aktivert lokalt via MOCK_GOOGLE_AUTH=true (se Routing.kt) — lar deg logge inn/
     // opprette en familie i dev uten en ekte Google OAuth-klient. Se dev-login.md/README.
     if (Env.get("MOCK_GOOGLE_AUTH")?.toBooleanStrictOrNull() == true) {
-        registerMockGoogleLogin(familyRepository, tokenRepository, frontendSuccessUrl, frontendJoinUrl)
+        registerMockGoogleLogin(familyRepository, tokenRepository, frontendSuccessUrl, frontendJoinUrl, adminRepository)
     }
 
     // Krever eksisterende sesjon — en forelder kan kun koble til/fornye SIN EGEN
@@ -195,11 +215,12 @@ fun Route.authRoutes(
         if (statePayload.startsWith("join:")) {
             val joinCode = statePayload.removePrefix("join:")
             val userInfo = oauthClient.fetchUserInfo(tokenResponse.access_token)
-            val familyId = handleJoin(joinCode, userInfo.sub, userInfo.email, userInfo.name ?: userInfo.email, familyRepository)
+            val familyId = handleJoin(joinCode, userInfo.sub, userInfo.email, userInfo.name ?: userInfo.email, familyRepository, adminRepository)
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
 
             val parent = familyRepository.findParentByGoogleSub(userInfo.sub)
                 ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet feil ved opprettelse"))
+            familyRepository.promoteToAdminIfConfigured(parent)
 
             tokenRepository.upsert(
                 parentId = parent.id,
@@ -219,6 +240,7 @@ fun Route.authRoutes(
                 // Ikke registrert i noen familie ennå — /auth/login oppretter ALDRI en ny
                 // familie (det er kun /join/start sin jobb). Send til join-siden i stedet.
                 ?: return@get call.respondRedirect("$frontendJoinUrl?error=ikke_registrert")
+            familyRepository.promoteToAdminIfConfigured(parent)
 
             tokenRepository.upsert(
                 parentId = parent.id,

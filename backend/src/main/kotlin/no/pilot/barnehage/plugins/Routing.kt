@@ -11,6 +11,7 @@ import no.pilot.barnehage.crypto.StateSigner
 import no.pilot.barnehage.crypto.TokenCipher
 import no.pilot.barnehage.db.FamilyRepository
 import no.pilot.barnehage.db.TokenRepository
+import no.pilot.barnehage.db.AdminRepository
 import no.pilot.barnehage.domain.AssignmentService
 import no.pilot.barnehage.google.AccessTokenProvider
 import no.pilot.barnehage.google.CalendarService
@@ -18,6 +19,7 @@ import no.pilot.barnehage.google.GoogleOAuthClient
 import no.pilot.barnehage.google.GoogleOAuthConfig
 import no.pilot.barnehage.routes.assignmentRoutes
 import no.pilot.barnehage.routes.accountRoutes
+import no.pilot.barnehage.routes.adminRoutes
 import no.pilot.barnehage.routes.authRoutes
 import no.pilot.barnehage.routes.calendarRoutes
 import no.pilot.barnehage.routes.familyRoutes
@@ -41,6 +43,7 @@ fun Application.configureRouting(database: Database) {
     val accessTokenProvider = AccessTokenProvider(oauthClient, tokenRepository)
     val assignmentService = AssignmentService()
     val familyRepository = FamilyRepository(database)
+    val adminRepository = AdminRepository(database)
     val frontendSuccessUrl = Env.get("FRONTEND_URL")?.let { "$it/tilkoblet" } ?: "/"
     val frontendJoinUrl = Env.get("FRONTEND_URL")?.let { "$it/join" } ?: "/join"
 
@@ -58,12 +61,13 @@ fun Application.configureRouting(database: Database) {
             }
         }
 
-        authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository)
-        joinRoutes(oauthClient, stateSigner, familyRepository)
+        authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository, adminRepository)
+        joinRoutes(oauthClient, stateSigner, familyRepository, adminRepository)
         familyRoutes(familyRepository, database)
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)
         accountRoutes(familyRepository, tokenRepository, oauthClient, calendarService, accessTokenProvider, database)
+        adminRoutes(familyRepository, adminRepository)
     }
 }

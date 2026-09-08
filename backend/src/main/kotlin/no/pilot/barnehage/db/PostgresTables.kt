@@ -44,7 +44,24 @@ object ParentsTable : Table("parents") {
      * disse fra ekte innloggede foreldre der det trengs, bl.a.
      * maks-2-innloggede-foreldre-grensen (se FamilyRepository). */
     val isHelper = bool("is_helper").default(false)
+    /** Sant for en admin — kan se aggregert statistikk og generere nye
+     * invitasjonskoder (se AdminRoutes/AdminRepository, V7-migrasjonen).
+     * Settes ikke via noe UI; kun automatisk ved innlogging hvis e-posten er
+     * listet i ADMIN_EMAILS (se AuthRoutes), eller manuelt i databasen. */
+    val isAdmin = bool("is_admin").default(false)
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    override val primaryKey = PrimaryKey(id)
+}
+
+/** Engangskoder generert av en admin for å OPPRETTE en helt ny familie — se
+ * V7-migrasjonen og routes/AdminRoutes.kt/JoinRoutes.kt. */
+object InviteCodesTable : Table("invite_codes") {
+    val id = uuid("id").clientDefault { UUID.randomUUID() }
+    val code = text("code").uniqueIndex()
+    val createdBy = uuid("created_by").references(ParentsTable.id)
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val usedAt = timestamp("used_at").nullable()
+    val usedByFamilyId = uuid("used_by_family_id").references(FamiliesTable.id).nullable()
     override val primaryKey = PrimaryKey(id)
 }
 
