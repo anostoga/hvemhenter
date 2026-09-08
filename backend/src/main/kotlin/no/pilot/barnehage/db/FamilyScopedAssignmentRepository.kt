@@ -115,6 +115,21 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .any()
     }
 
+    /** Fremtidige (dato >= [fromDate]) tildelinger for én bestemt person i
+     * familien — brukt ved kontosletting (se AccountRoutes) til å rydde bort
+     * personens KOMMENDE oppgaver (og tilhørende Google-kalenderhendelser) FØR
+     * selve forelder-raden slettes, siden `parents.id` ikke har
+     * `on delete cascade` fra `assignments` (samme begrunnelse som
+     * `hasAssignmentsForParent`). Historiske tildelinger (dato < fromDate)
+     * røres bevisst IKKE her — de skal bli stående som historikk selv etter at
+     * kontoen er slettet. */
+    fun findFutureForParent(parentId: UUID, fromDate: LocalDate): List<FamilyAssignment> = transaction(database) {
+        AssignmentsTable
+            .selectAll()
+            .where { (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.parentId eq parentId) and (AssignmentsTable.date greaterEq fromDate) }
+            .map { it.toFamilyAssignment() }
+    }
+
     /** Kun til bruk i tester/nullstilling — rammer utelukkende `familyId`
      * repositoryet ble instansiert med, aldri andre familier. */
     fun deleteAllForThisFamily() = transaction(database) {

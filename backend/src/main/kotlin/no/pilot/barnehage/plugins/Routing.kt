@@ -17,6 +17,7 @@ import no.pilot.barnehage.google.CalendarService
 import no.pilot.barnehage.google.GoogleOAuthClient
 import no.pilot.barnehage.google.GoogleOAuthConfig
 import no.pilot.barnehage.routes.assignmentRoutes
+import no.pilot.barnehage.routes.accountRoutes
 import no.pilot.barnehage.routes.authRoutes
 import no.pilot.barnehage.routes.calendarRoutes
 import no.pilot.barnehage.routes.familyRoutes
@@ -63,5 +64,6 @@ fun Application.configureRouting(database: Database) {
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)
+        accountRoutes(familyRepository, tokenRepository, oauthClient, calendarService, accessTokenProvider, database)
     }
 }

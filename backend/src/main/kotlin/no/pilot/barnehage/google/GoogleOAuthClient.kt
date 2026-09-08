@@ -99,6 +99,21 @@ class GoogleOAuthClient(
             },
         ).body()
 
+    /** Tilbakekaller et token hos Google (fjerner appens tilgang til brukerens
+     * konto helt, ikke bare lokalt) — brukt ved kontosletting (se AccountRoutes).
+     * Godtar både access- og refresh-token (Google tilbakekaller hele
+     * tilgangen uansett hvilken av dem som sendes). Kalleren bør fange feil
+     * herfra selv — et allerede utløpt/ugyldig token gir en feilrespons fra
+     * Google, men skal ikke blokkere resten av kontoslettingen. */
+    suspend fun revokeToken(token: String) {
+        httpClient.submitForm(
+            url = "https://oauth2.googleapis.com/revoke",
+            formParameters = Parameters.build {
+                append("token", token)
+            },
+        )
+    }
+
     /** Henter stabil identitet (sub) + e-post/navn via Google sitt userinfo-endepunkt,
      * brukt til å knytte innlogging til en `parents`-rad (google_sub). */
     suspend fun fetchUserInfo(accessToken: String): GoogleUserInfo =

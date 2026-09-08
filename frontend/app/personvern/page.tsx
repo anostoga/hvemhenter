@@ -96,10 +96,10 @@ export default function PersonvernPage() {
       <section>
         <h2>Hvor lenge vi lagrer opplysningene</h2>
         <p>
-          Opplysningene lagres så lenge familien er aktiv i appen. Enkelttildelinger og hjelpere kan slettes
-          fortløpende av familien selv i appen. Det finnes foreløpig ingen selvbetjent knapp for å slette hele
-          brukerkontoen/familien — ta kontakt (se under) hvis du ønsker at alle dine opplysninger skal slettes,
-          så gjør vi det manuelt.
+          Opplysningene lagres så lenge kontoen din er aktiv i appen. Enkelttildelinger og hjelpere kan slettes
+          fortløpende av familien selv i appen, og du kan når som helst slette hele kontoen din selv under
+          Profil (se under). Historiske tildelinger blir stående som historikk for resten av familien selv
+          etter at du har slettet kontoen din.
         </p>
       </section>
 
@@ -107,9 +107,11 @@ export default function PersonvernPage() {
         <h2>Dine rettigheter</h2>
         <p>
           Du kan når som helst be om innsyn i, retting av, eller sletting av opplysningene vi har lagret om
-          deg. Du kan selv endre navn og avatar under Profil, og fjerne enkelttildelinger og hjelpere fra
-          Familie-siden. For alt annet — inkludert full sletting av konto/familie — ta kontakt via GitHub, se
-          under.
+          deg. Du kan selv endre navn og avatar, og slette hele kontoen din permanent, under Profil. Fjerning av
+          enkelttildelinger og hjelpere gjøres fra Familie-siden. Sletter du kontoen din som den siste innloggede
+          forelderen i familien, slettes hele familien (inkl. hjelpere og invitasjonskode) samtidig. Ved
+          kontosletting tilbakekaller vi også appens tilgang til Google-kontoen din. For andre henvendelser —
+          f.eks. hvis du ønsker innsyn uten å slette noe — ta kontakt via GitHub, se under.
         </p>
       </section>
 

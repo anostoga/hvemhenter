@@ -216,4 +216,22 @@ export const api = {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
     }).then((r) => handle<Profile>(r)),
+
+  // Sletter kontoen PERMANENT (egen forelder-rad, fremtidige tildelinger,
+  // Google-tilgang og — hvis dette var siste innloggede forelder — hele
+  // familien, se backend AccountRoutes). Ingen 401-håndtering nødvendig her
+  // (i motsetning til de andre kallene): svaret er nettopp at brukeren ikke
+  // lenger er innlogget, og kalleren navigerer uansett bort etterpå (se
+  // ProfilClient.tsx).
+  deleteAccount: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/account`, {
+      method: "DELETE",
+      credentials: "include",
+    });
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+    // 204 No Content — ingen body å parse
+  },
 };

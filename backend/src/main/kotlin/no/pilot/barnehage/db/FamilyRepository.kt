@@ -266,6 +266,37 @@ class FamilyRepository(private val database: Database) {
         deleted > 0
     }
 
+    /** Fjerner en INNLOGGET forelders egen rad (isHelper = false) — brukt ved
+     * selvbetjent kontosletting (se AccountRoutes), IKKE for hjelpere (se
+     * `removeHelper`). Kalleren er ansvarlig for på forhånd å ha ryddet bort
+     * forelderens FREMTIDIGE tildelinger (se
+     * FamilyScopedAssignmentRepository.findFutureForParent) — akkurat som for
+     * `removeHelper` har `assignments.parent_id` ingen `on delete cascade`, så
+     * en rå sletting med gjenværende tildelinger ville gitt en FK-feil i
+     * stedet for en forståelig feilmelding. Kalleren er også ansvarlig for
+     * selv å ha avgjort at dette IKKE er den SISTE forelderen i familien (bruk
+     * `deleteFamily` i så fall i stedet) — denne metoden håndhever ikke det
+     * selv, den bare fjerner raden hvis den finnes. */
+    fun removeParent(familyId: UUID, parentId: UUID): Boolean = transaction(database) {
+        val deleted = ParentsTable.deleteWhere {
+            org.jetbrains.exposed.sql.Op.build {
+                (ParentsTable.id eq parentId) and (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq false)
+            }
+        }
+        deleted > 0
+    }
+
+    /** Sletter HELE familien — brukt når den SISTE innloggede forelderen
+     * sletter kontoen sin (se AccountRoutes/`parentCount`). Kaskaderer i
+     * databasen til alle foreldre (inkl. hjelpere), deres krypterte
+     * OAuth-tokens, og all tildelingshistorikk (`on delete cascade`, se
+     * db/migration/V1__init.sql) — ett enkelt kall her er derfor nok, ingen
+     * egen opprydding av parents/assignments trengs herfra. Invitasjonskoden
+     * forsvinner med familien. */
+    fun deleteFamily(familyId: UUID) = transaction(database) {
+        FamiliesTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { FamiliesTable.id eq familyId } }
+    }
+
     private fun org.jetbrains.exposed.sql.ResultRow.toParentRecord() = ParentRecord(
         id = this[ParentsTable.id],
         familyId = this[ParentsTable.familyId],
