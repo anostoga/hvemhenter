@@ -20,16 +20,6 @@ data class FamilyAssignment(
     val googleEventId: String?,
 )
 
-/**
- * Familie-scopet lesing/skriving av tildelinger. `familyId` er et PÅKREVD
- * konstruktørparameter (ikke et valgfritt filter man må huske) — det finnes
- * ingen metode her som kan spørre eller skrive på tvers av familier.
- *
- * Instansier én av disse PER REQUEST, med `familyId` hentet fra den
- * autentiserte sesjonen (se auth/SessionAuth.kt) — ALDRI fra request-body,
- * query-param eller annen klient-styrt input. Det er nettopp det som ville
- * gjort family-scoping virkningsløst.
- */
 class FamilyScopedAssignmentRepository(private val familyId: UUID, private val database: Database) {
 
     fun findByDate(date: LocalDate): List<FamilyAssignment> = transaction(database) {
@@ -47,9 +37,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .map { it.toFamilyAssignment() }
     }
 
-    /** Oppretter en ny tildeling. Krever at kalleren allerede har verifisert at
-     * `parentId` faktisk tilhører `familyId` (se JoinRoutes/parent-oppslag) —
-     * denne metoden stoler på det, den slår ikke opp parents-tabellen selv. */
     fun insert(date: LocalDate, type: String, parentId: UUID, source: String, googleEventId: String?): UUID = transaction(database) {
         AssignmentsTable.insert {
             it[AssignmentsTable.familyId] = this@FamilyScopedAssignmentRepository.familyId
@@ -62,9 +49,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         }[AssignmentsTable.id]
     }
 
-    /** Finnes det allerede en tildeling for denne datoen/typen i familien? Brukes til
-     * å avgjøre om `/api/assign` skal opprette en ny rad eller erstatte en eksisterende
-     * (kolonnene `family_id, date, type` har en unik-constraint i databasen). */
     fun findByDateAndType(date: LocalDate, type: String): FamilyAssignment? = transaction(database) {
         AssignmentsTable
             .selectAll()
@@ -72,10 +56,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .firstOrNull()?.toFamilyAssignment()
     }
 
-    /** Erstatter en eksisterende tildeling for `date`/`type` med ny forelder/kilde/
-     * kalenderhendelse. Kalleren er ansvarlig for å slette den gamle Google-kalenderhendelsen
-     * (`googleEventId` på raden som erstattes) FØR dette kalles, ellers blir den værende igjen
-     * i kalenderen uten at noen tildeling peker på den lenger. */
     fun update(id: UUID, parentId: UUID, source: String, googleEventId: String?) = transaction(database) {
         AssignmentsTable.update({ AssignmentsTable.id eq id }) {
             it[AssignmentsTable.parentId] = parentId
@@ -84,9 +64,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         }
     }
 
-    /** Finner en enkelt tildeling ved id — scopet til `familyId`, slik at et forsøk på å
-     * hente/slette en annen families tildeling ved å gjette en UUID gir null, ikke en
-     * treff fra en annen familie. */
     fun findById(id: UUID): FamilyAssignment? = transaction(database) {
         AssignmentsTable
             .selectAll()
@@ -94,19 +71,10 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .firstOrNull()?.toFamilyAssignment()
     }
 
-    /** Sletter én tildeling. Scopet til `familyId` (se `findById`) — sletter kun hvis
-     * raden faktisk tilhører DENNE familien, ellers er dette en no-op (0 rader rammet).
-     * Kalleren er ansvarlig for å slette en ev. tilhørende Google-kalenderhendelse
-     * FØR dette kalles (se AssignmentRoutes). */
     fun delete(id: UUID) = transaction(database) {
         AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.id eq id) } }
     }
 
-    /** Finnes det noen tildelinger (historiske eller fremtidige) for denne
-     * personen i familien? Brukt av FamilyRoutes til å avvise fjerning av en
-     * hjelper som fortsatt har tildelinger — `parents.id` har ingen
-     * `on delete cascade` fra `assignments`, så en rå sletting ville gitt en
-     * kryptisk FK-feil i stedet for en forståelig 409. */
     fun hasAssignmentsForParent(parentId: UUID): Boolean = transaction(database) {
         AssignmentsTable
             .selectAll()
@@ -115,14 +83,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .any()
     }
 
-    /** Fremtidige (dato >= [fromDate]) tildelinger for én bestemt person i
-     * familien — brukt ved kontosletting (se AccountRoutes) til å rydde bort
-     * personens KOMMENDE oppgaver (og tilhørende Google-kalenderhendelser) FØR
-     * selve forelder-raden slettes, siden `parents.id` ikke har
-     * `on delete cascade` fra `assignments` (samme begrunnelse som
-     * `hasAssignmentsForParent`). Historiske tildelinger (dato < fromDate)
-     * røres bevisst IKKE her — de skal bli stående som historikk selv etter at
-     * kontoen er slettet. */
     fun findFutureForParent(parentId: UUID, fromDate: LocalDate): List<FamilyAssignment> = transaction(database) {
         AssignmentsTable
             .selectAll()
@@ -130,8 +90,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .map { it.toFamilyAssignment() }
     }
 
-    /** Kun til bruk i tester/nullstilling — rammer utelukkende `familyId`
-     * repositoryet ble instansiert med, aldri andre familier. */
     fun deleteAllForThisFamily() = transaction(database) {
         val id = familyId
         AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { AssignmentsTable.familyId eq id } }

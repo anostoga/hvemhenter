@@ -25,15 +25,6 @@ data class AdminInviteCodeResponse(
     val usedByFamilyId: String? = null,
 )
 
-/**
- * Adminside: aggregert statistikk (antall familier/brukere) og oppretting av
- * nye invitasjonskoder for å starte en helt ny familie — se AdminRepository/
- * JoinRoutes.handleJoin. KUN tilgjengelig for foreldre med `isAdmin = true`
- * (se FamilyRepository/AuthRoutes.promoteToAdminIfConfigured); alt annet enn
- * det gir 403, ALDRI en stille tom respons (unngår å late som ruten ikke finnes
- * for en ellers gyldig innlogget bruker — enklere å feilsøke, og lekker uansett
- * ingenting `authenticate(SESSION_AUTH_NAME)` ikke allerede har avslørt).
- */
 fun Route.adminRoutes(familyRepository: FamilyRepository, adminRepository: AdminRepository) {
     authenticate(SESSION_AUTH_NAME) {
         get("/api/admin/stats") {

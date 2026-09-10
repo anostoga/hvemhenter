@@ -17,20 +17,12 @@ function NotRegisteredNotice() {
   );
 }
 
-/**
- * Forhåndsutfyller kode-feltet fra `?code=`-query-parameteren (se
- * AdminClient.tsx sin "Kopier lenke"-knapp, som lenker til `/join?code=...`)
- * — brukeren trenger da ikke å skrive inn koden selv. Egen komponent (i
- * stedet for å lese `useSearchParams()` direkte i `JoinPage`) fordi
- * `useSearchParams()` krever en `<Suspense>`-grense i Next.js, se
- * `NotRegisteredNotice` over for samme mønster.
- */
 function CodeFromQuery({ onCode }: { onCode: (code: string) => void }) {
   const params = useSearchParams();
   const codeParam = params.get("code");
   useEffect(() => {
     if (codeParam) onCode(codeParam);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
   }, [codeParam]);
   return null;
 }
@@ -42,11 +34,7 @@ export default function JoinPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setStatus("loading");
-    // /join/start er en GET-rute som (etter en rask kode-sjekk) redirigerer
-    // videre til Googles innloggingsside — naviger nettleseren dit direkte,
-    // ikke fetch() (det er ikke et JSON-API-kall). Relativ URL: Next.js
-    // proxyer /join/* til backend (se rewrites() i next.config.mjs), slik at
-    // sesjonscookien fra /auth/google/callback ender opp på riktig origin.
+
     window.location.href = `/join/start?code=${encodeURIComponent(code)}`;
   }
 

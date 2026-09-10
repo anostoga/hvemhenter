@@ -4,14 +4,6 @@ import { useState } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-/**
- * Viser invitasjonskoden (se app/familie/page.tsx) i en stor, lett synlig
- * hvit boks med en kopier-knapp ved siden av. Egen client-komponent
- * (clipboard-API + midlertidig "kopiert"-tilstand) selv om resten av
- * /familie er en ren Server Component uten interaktivitet — se
- * FamilieData/FamiliePage for begrunnelsen for at siden ellers ikke trenger
- * "use client".
- */
 export function InviteCode({ code }: { code: string }) {
   const [copied, setCopied] = useState(false);
 

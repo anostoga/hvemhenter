@@ -8,17 +8,6 @@ export const metadata = {
   title: "Admin — Barnehage-planlegger",
 };
 
-/**
- * Egen async komponent for SSR-hentingen — se app/innstillinger/page.tsx sin
- * `InnstillingerData` for hvorfor dette må ligge i en egen komponent for at
- * `<Suspense>` skal ha noe å vente på.
- *
- * `ForbiddenError` (403 — innlogget, men ikke admin) og `UnauthorizedError`
- * (401 — ikke innlogget i det hele tatt) håndteres likt her (begge sender til
- * forsiden): siden skal uansett ikke vise noe admin-innhold til en
- * ikke-admin, og en 403 avslører uansett ingenting mer enn "du har ikke
- * tilgang" (se backend AdminRoutes.kt).
- */
 async function AdminData() {
   let stats: AdminStats;
   let inviteCodes: AdminInviteCode[];
@@ -33,11 +22,6 @@ async function AdminData() {
   return <AdminClient initialStats={stats} initialInviteCodes={inviteCodes} />;
 }
 
-/**
- * Server Component hvis eneste jobb er å hente admin-statistikk +
- * invitasjonskoder FØR HTML-en sendes (samme mønster som /innstillinger) —
- * selve "opprett ny kode"-mutasjonen skjer client-side i `AdminClient`.
- */
 export default function AdminPage() {
   return (
     <main className="flex flex-col gap-6">

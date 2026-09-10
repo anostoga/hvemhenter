@@ -32,7 +32,6 @@ class AssignmentServiceTest {
 
         val suggestion = service.suggest(parents, history, "2026-08-21", AssignmentType.DROPOFF)
 
-        // Uavgjort i antall (1-1) -> alternér fra sist tildelte (far) -> foreslå mor
         assertEquals(mor.id, suggestion.suggestedParentId)
     }
 
@@ -41,7 +40,7 @@ class AssignmentServiceTest {
         val history = emptyList<Assignment>()
         val windowStart = 1_000L
         val windowEnd = 2_000L
-        // Uten historikk er begge like (0 tildelinger) -> preferred = parents.first() = mor.
+
         val busyByParent = mapOf(mor.id to listOf(BusyPeriod(windowStart, windowEnd)))
 
         val suggestion = service.suggest(
@@ -90,8 +89,7 @@ class AssignmentServiceTest {
         )
         val windowStart = 1_000L
         val windowEnd = 2_000L
-        // Komplementet (far) har konflikt -> fall gjennom til vanlig rettferdighets-/
-        // ledighetslogikk, som her (uten annen historikk for PICKUP) velger mor (parents.first()).
+
         val busyByParent = mapOf(far.id to listOf(BusyPeriod(windowStart, windowEnd)))
 
         val suggestion = service.suggest(

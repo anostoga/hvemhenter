@@ -5,8 +5,7 @@ val logbackVersion = "1.5.6"
 
 buildscript {
     dependencies {
-        // Flyway-gradle-tasks kjører i build-classpath, trenger driver + dialect-modul her også
-        // (ikke bare i app sin `implementation`-classpath).
+
         classpath("org.postgresql:postgresql:42.7.4")
         classpath("org.flywaydb:flyway-database-postgresql:13.4.0")
     }
@@ -32,7 +31,7 @@ repositories {
 }
 
 dependencies {
-    // Ktor server
+
     implementation("io.ktor:ktor-server-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-netty-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-content-negotiation-jvm:$ktorVersion")
@@ -43,13 +42,10 @@ dependencies {
     implementation("io.ktor:ktor-server-call-logging-jvm:$ktorVersion")
     implementation("io.ktor:ktor-server-status-pages-jvm:$ktorVersion")
 
-    // Ktor client (til å kalle Google Calendar API)
     implementation("io.ktor:ktor-client-core-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-cio-jvm:$ktorVersion")
     implementation("io.ktor:ktor-client-content-negotiation-jvm:$ktorVersion")
 
-    // Database: Exposed + Postgres/Flyway. Postgres er eneste database — families,
-    // parents, oauth_tokens og assignments er alle familie-scopet (se V1__init.sql).
     implementation("org.jetbrains.exposed:exposed-core:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-dao:$exposedVersion")
     implementation("org.jetbrains.exposed:exposed-jdbc:$exposedVersion")
@@ -66,9 +62,6 @@ dependencies {
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
 }
 
-// jvmToolchain lar Gradle auto-provisionere en JDK 25 for kompilering/tester,
-// uavhengig av hvilken JDK selve Gradle-daemonen kjører på (nyttig i CI/lokalt
-// der maskinen ikke nødvendigvis har JDK 25 forhåndsinstallert).
 kotlin {
     jvmToolchain(25)
 }
@@ -79,8 +72,7 @@ tasks.withType<org.jetbrains.kotlin.gradle.tasks.KotlinCompile>().configureEach 
 
 tasks.test {
     useJUnitPlatform()
-    // Dummy testverdier — ikke ekte hemmeligheter. Sikrer at testene kjører
-    // uavhengig av lokalt oppsatte miljøvariabler.
+
     environment("TOKEN_ENCRYPTION_KEY", "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=")
     environment("STATE_SIGNING_SECRET", "test-signing-secret")
     environment("SESSION_SIGNING_SECRET", "test-session-signing-secret")
@@ -101,13 +93,6 @@ tasks.named("shadowJar") {
     }
 }
 
-// Denne Gradle-tasken (`./gradlew flywayMigrate`) trengs FORTSATT lokalt og i CI-testjobben:
-// enkelte tester (f.eks. FamilyScopedAssignmentRepositoryTest) kobler til databasen direkte
-// via Exposed og går utenom `PostgresDatabase.connect()`/`module()`, så skjemaet må være
-// migrert på forhånd før de kjører.
-// Selve APPEN migrerer nå seg selv programmatisk ved oppstart (se PostgresDatabase.connect()),
-// så produksjonsdeploy (Fly.io) er ikke lenger avhengig av et eget CI/manuelt migreringssteg
-// mot Supabase — appen bruker samme DATABASE_URL den uansett kobler til med.
 flyway {
     url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage"
     user = System.getenv("DATABASE_USER") ?: "postgres"

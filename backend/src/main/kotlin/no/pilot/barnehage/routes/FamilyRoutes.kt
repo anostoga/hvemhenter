@@ -30,11 +30,6 @@ data class UpdateHelperRequest(val name: String, val avatar: String? = null)
 @Serializable
 data class HelperResponse(val id: String, val name: String, val avatar: String? = null)
 
-/**
- * Innstillinger for den innloggede brukerens egen familie — `familyId` hentes
- * kun fra sesjonen, aldri fra klienten, samme mønster som AssignmentRoutes.
- * Kalender-tilknytning er nå PER FORELDER, ikke familie-delt — se CalendarRoutes.
- */
 fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
     authenticate(SESSION_AUTH_NAME) {
         get("/api/family") {
@@ -45,10 +40,6 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
             call.respond(FamilyResponse(id = family.id.toString(), inviteCode = family.inviteCode))
         }
 
-        // "Hjelpere" — personer (typisk besteforeldre/slektninger) som kan tildeles
-        // levering/henting akkurat som en innlogget forelder (se AssignmentRoutes/
-        // effectiveParents og /api/parents, som returnerer begge typer), men som
-        // ALDRI logger inn selv. Ingen Google-konto/kalender er mulig for disse.
         post("/api/family/helpers") {
             val session = call.userSession()!!
             val familyId = UUID.fromString(session.familyId)
@@ -89,10 +80,6 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
             val helperId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
 
-            // Avvis fjerning hvis hjelperen fortsatt har tildelinger — `parents.id`
-            // har ingen `on delete cascade` fra `assignments`, så en rå sletting her
-            // ville gitt en kryptisk FK-feil i stedet for en forståelig 409. Brukeren
-            // må selv fjerne/omfordele tildelingene først (se /ukeplan).
             val assignmentRepo = FamilyScopedAssignmentRepository(familyId, database)
             if (assignmentRepo.hasAssignmentsForParent(helperId)) {
                 return@delete call.respond(
@@ -109,4 +96,3 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
         }
     }
 }
-

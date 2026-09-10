@@ -47,20 +47,11 @@ data class AssignRequest(
     val endTime: String? = null,
 )
 
-/** Standard tidsvindu for levering/henting, brukt både til konfliktsjekk og som
- * forvalgte tidspunkter når kalenderhendelser opprettes (kan overstyres per kall). */
 internal fun defaultWindow(type: AssignmentType): Pair<String, String> = when (type) {
     AssignmentType.DROPOFF -> "07:30" to "09:15"
     AssignmentType.PICKUP -> "15:00" to "17:00"
 }
 
-/**
- * Alle ruter her krever en gyldig sesjon (`authenticate(SESSION_AUTH_NAME)`) og er
- * scopet til den innloggede brukerens familie — `familyId` hentes ALDRI fra
- * request-body/query, kun fra den signerte sesjonscookien (se auth/SessionAuth.kt).
- * Dette er det som gjør at én families data er strukturelt utilgjengelig for en
- * annen families innloggede bruker.
- */
 fun Route.assignmentRoutes(
     familyRepository: FamilyRepository,
     assignmentService: AssignmentService,
@@ -89,12 +80,6 @@ fun Route.assignmentRoutes(
             val type = call.parameters["type"]?.let { AssignmentType.valueOf(it.uppercase()) }
                 ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("type mangler (DROPOFF|PICKUP)"))
 
-            // Hjelpere (isHelper = true, se FamilyRepository.addHelper) skal ALDRI
-            // foreslås automatisk — algoritmen under forutsetter dessuten nøyaktig
-            // to likestilte foreldre (rettferdig fordeling/round-robin mellom "de
-            // to"), noe som ikke gir mening for en hjelper. De er fortsatt fullt
-            // tilgjengelige for MANUELL tildeling (se /api/assign og /api/parents,
-            // som fortsatt returnerer alle, inkl. hjelpere, til select-en i /ukeplan).
             val parents = excludeHelpers(effectiveParents(familyRepository, tokenRepository, familyId))
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val history = repo.all().map { it.toApiAssignment() }
@@ -125,15 +110,9 @@ fun Route.assignmentRoutes(
 
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val requestDate = LocalDate.parse(request.date)
-            // Finnes det allerede en tildeling for denne datoen/typen (unik-constraint i
-            // databasen på family_id/date/type)? I så fall ERSTATTER vi den (oppdaterer
-            // forelder/kilde, sletter ev. gammel kalenderhendelse og oppretter en ny),
-            // i stedet for å prøve å sette inn en ny rad (som ville feilet på constraint-en).
+
             val existing = repo.findByDateAndType(requestDate, request.type.name)
 
-            // VIKTIG: den gamle hendelsen ligger i DEN OPPRINNELIG TILDELTE forelderens
-            // kalender, ikke nødvendigvis i den nye forelderens — hvis tildelingen flyttes
-            // fra én forelder til en annen, må slettingen skje mot riktig (gamle) kalender.
             if (existing?.googleEventId != null) {
                 val oldParent = parents.find { it.id == existing.parentId }
                 val oldCalendarId = oldParent?.calendarId
@@ -187,8 +166,7 @@ fun Route.assignmentRoutes(
                 ?: return@delete call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
 
             val repo = FamilyScopedAssignmentRepository(familyId, database)
-            // findById() er scopet til familyId — en annen families tildeling gir null her,
-            // ikke en treff, selv om assignmentId skulle vært gjettet riktig.
+
             val assignment = repo.findById(assignmentId)
                 ?: return@delete call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
 
@@ -220,11 +198,6 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
     googleEventId = googleEventId,
 )
 
-/**
- * Slår sammen foreldre-rader (familyId/id/navn fra Postgres) med reell
- * OAuth-tilkoblingsstatus fra tokens-tabellen. `findParents` alene sier ingenting
- * om hvorvidt Google-kalender er koblet til.
- */
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
     familyRepository.findParents(familyId).map { parent ->
         Parent(
@@ -239,25 +212,8 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
         )
     }
 
-/**
- * Filtrerer bort hjelpere (se FamilyRepository.addHelper) fra en parent-liste —
- * brukt FØR `assignmentService.suggest()` kalles i `/api/suggest`, slik at
- * algoritmen (som forutsetter nøyaktig to likestilte foreldre, se
- * AssignmentService) aldri kan foreslå en hjelper automatisk. Hjelpere er
- * fortsatt fullt tilgjengelige for MANUELL tildeling (se `/api/assign` og
- * `/api/parents`, som begge fortsatt returnerer alle, inkl. hjelpere).
- */
 internal fun excludeHelpers(parents: List<Parent>): List<Parent> = parents.filterNot { it.isHelper }
 
-/**
- * Henter opptatte perioder PER FORELDER fra forelderens valgte TILGJENGELIGHETS-
- * kalender (`availabilityCalendarId`, faller tilbake til `calendarId` hvis ikke
- * satt — se CalendarRoutes/`/api/calendars/mine`), ikke nødvendigvis samme
- * kalender som tildelinger skrives til. En forelder uten valgt kalender, eller
- * uten gyldig access-token, gir rett og slett ingen opptatte perioder for seg
- * selv (i stedet for en feil) — konfliktsjekken degraderer da bare til
- * "vi vet ikke", ikke krasj.
- */
 private suspend fun fetchBusyPeriods(
     parents: List<Parent>,
     date: String,
@@ -282,15 +238,6 @@ private suspend fun fetchBusyPeriods(
     }
 }
 
-/**
- * Avgjør om en hendelse tilhører en gitt forelder ved å se om forelderens FORNAVN
- * inngår i hendelsestittelen (case-insensitive). Brukt tidligere til å fordele
- * hendelser fra én delt familiekalender mellom foreldre (se `fetchBusyPeriods`
- * over, som nå bruker per-forelder-kalendere i stedet og ikke lenger trenger
- * denne). Beholdt urørt (og fortsatt dekket av
- * AssignmentRoutesCharacterizationTest) for å unngå å røre en fungerende,
- * testet funksjon uten grunn.
- */
 internal fun matchParent(event: CalendarEventItem, parentName: String): BusyPeriod? {
     val summary = event.summary ?: return null
     val firstName = parentName.substringBefore(" ")

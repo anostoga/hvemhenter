@@ -25,13 +25,6 @@ data class UpdateMyCalendarRequest(val calendarId: String? = null, val availabil
 @Serializable
 data class AvailableCalendarResponse(val id: String, val summary: String, val primary: Boolean)
 
-/**
- * Hver forelder velger sin EGEN Google-kalender — tildelinger der forelderen er
- * satt opp skrives som hendelser dit (se AssignmentRoutes), i stedet for til én
- * kalender delt av hele familien (den tidligere `families.shared_calendar_id`-
- * modellen). `parentId` hentes kun fra sesjonen, aldri fra klienten — én
- * forelder kan derfor aldri lese eller endre en annen forelders kalendervalg.
- */
 fun Route.calendarRoutes(
     familyRepository: FamilyRepository,
     accessTokenProvider: AccessTokenProvider,
@@ -55,17 +48,9 @@ fun Route.calendarRoutes(
             val session = call.userSession()!!
             val parentId = UUID.fromString(session.parentId)
             val request = call.receive<UpdateMyCalendarRequest>()
-            // Tom/manglende streng betyr eksplisitt "skriv ikke tildelinger til noen
-            // kalender" — en gyldig, vedvarende brukervalgt tilstand (se AssignmentRoutes,
-            // som allerede degraderer til "ingen kalenderhendelse opprettes" når
-            // calendarId er null), ikke lenger en feil.
+
             val calendarId = request.calendarId?.takeIf { it.isNotBlank() }
-            // Tom streng betyr "ikke valgt" for tilgjengelighetskalenderen (samme som
-            // avkrysningsboksen "bruk samme kalender" i UI-et) — lagres som null,
-            // ikke som en tom streng, slik at effectiveAvailabilityCalendarId() faller
-            // tilbake til calendarId. Hvis `availabilityDisabled = true` normaliserer
-            // `updateParentCalendars` uansett bort en ev. medsendt availabilityCalendarId,
-            // slik at databasen aldri havner i en selvmotsigende tilstand.
+
             val availabilityCalendarId = request.availabilityCalendarId?.takeIf { it.isNotBlank() }
             familyRepository.updateParentCalendars(parentId, calendarId, availabilityCalendarId, request.availabilityDisabled)
             call.respond(
@@ -78,10 +63,6 @@ fun Route.calendarRoutes(
             )
         }
 
-        // Lar brukeren velge kalender fra en nedtrekksliste i stedet for å skrive inn
-        // en rå kalender-ID. Krever at brukeren allerede har koblet til Google (samme
-        // "connected"-sjekk som /api/parents) — uten det finnes ingen access token å
-        // liste kalendere med.
         get("/api/calendars/available") {
             val session = call.userSession()!!
             val parentId = UUID.fromString(session.parentId)

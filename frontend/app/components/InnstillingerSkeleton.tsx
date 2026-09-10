@@ -1,10 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/**
- * Suspense-fallback for /innstillinger — speiler "Min kalender"-skjemaet
- * (select + checkbox + lagre-knapp), samme begrunnelse som de andre
- * `*Skeleton`-komponentene.
- */
 export function InnstillingerSkeleton() {
   return (
     <div className="flex flex-col gap-6">

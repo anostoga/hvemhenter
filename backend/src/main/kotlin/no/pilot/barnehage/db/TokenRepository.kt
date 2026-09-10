@@ -20,9 +20,6 @@ data class StoredToken(
     val expiresAt: LocalDateTime,
 )
 
-/** Leser/skriver krypterte OAuth-tokens i Postgres (`oauth_tokens`). Tokens er
- * aldri i klartekst i databasen eller i logger. Scopes naturlig via `parent_id`
- * (en fremmednøkkel til `parents`, som igjen tilhører én familie). */
 class TokenRepository(private val cipher: TokenCipher, private val database: Database) {
 
     fun upsert(parentId: UUID, accessToken: String, refreshToken: String, expiresAt: LocalDateTime) = transaction(database) {

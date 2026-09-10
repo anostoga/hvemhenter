@@ -14,13 +14,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Familie-isolasjonstest — den viktigste sikkerhetstesten i hele multi-familie-
- * refaktoreringen: bevis at familie A ALDRI kan lese familie B sine data.
- *
- * Kjører mot en ekte lokal Postgres (docker-compose i backend/), samme database
- * som brukes til `flywayMigrate`. Testene rydder opp etter seg (sletter egne rader).
- */
 class FamilyScopedAssignmentRepositoryTest {
     private val database = Database.connect(
         url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",
@@ -102,9 +95,7 @@ class FamilyScopedAssignmentRepositoryTest {
 
     @Test
     fun `oppdatering av eksisterende tildeling bytter forelder uten å opprette en ny rad`() {
-        // Regresjonstest: family_id/date/type har en unik-constraint i databasen,
-        // så et forsøk på å SETTE INN en ny rad for samme dato/type ville feilet.
-        // findByDateAndType() + update() må brukes i stedet for insert() ved reassignment.
+
         val repoA = FamilyScopedAssignmentRepository(familyA, database)
         val id = repoA.insert(LocalDate.of(2026, 8, 30), "PICKUP", parentA, "MANUAL", null)
 

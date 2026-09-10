@@ -8,11 +8,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/**
- * Karakteriseringstester: låser dagens adferd for kalender-/tidsvinduslogikk
- * FØR multi-familie-refaktoreringen (Fase 4). Hvis noen av disse feiler etter
- * refaktorering er det et signal om at adferden har endret seg utilsiktet.
- */
 class AssignmentRoutesCharacterizationTest {
 
     @Test

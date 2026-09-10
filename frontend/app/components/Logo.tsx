@@ -1,15 +1,3 @@
-/**
- * Logo/ordmerke: en tegnet figur (hode, hår, kinn, øyne, smil) ved siden av
- * teksten "Hvem henter?" — rendres inline som JSX (ikke en statisk fil i
- * public/) siden den er liten og brukes ett sted, se Nav.tsx. `height`-propen
- * skalerer hele merket proporsjonalt (viewBox bevarer sideforholdet 620:200).
- *
- * Fargene er faste (ikke tema-avhengige) siden logoen kun vises i den grønne
- * merkevarefargede toppmenyen (se Nav.tsx/layout.tsx): hodeomriss/hårlokk og
- * ordmerketeksten bruker kremhvit (#FBF7EF) for lesbarhet mot den grønne
- * bakgrunnen, mens øyne/smil beholder den mørke fargen (#2E2A25) siden de
- * tegnes mot den lyse hudfargen, ikke mot bakgrunnen.
- */
 export function Logo({ height = 32 }: { height?: number }) {
   return (
     <svg
@@ -23,9 +11,9 @@ export function Logo({ height = 32 }: { height?: number }) {
       <title>Hvem henter?</title>
 
       <g transform="translate(1,23) scale(0.75)">
-        {/* hode */}
+        {}
         <circle cx="100" cy="102" r="72" fill="#F7CBA4" stroke="#FBF7EF" strokeWidth={5} />
-        {/* hårlokk */}
+        {}
         <path
           d="M87 33 C79 19, 99 15, 103 29"
           fill="none"
@@ -33,13 +21,13 @@ export function Logo({ height = 32 }: { height?: number }) {
           strokeWidth={5}
           strokeLinecap="round"
         />
-        {/* kinn */}
+        {}
         <circle cx="58" cy="118" r="12" fill="#F2977E" opacity={0.55} />
         <circle cx="142" cy="118" r="12" fill="#F2977E" opacity={0.55} />
-        {/* øyne */}
+        {}
         <circle cx="74" cy="94" r="6.5" fill="#2E2A25" />
         <circle cx="126" cy="94" r="6.5" fill="#2E2A25" />
-        {/* smil */}
+        {}
         <path
           d="M70 122 Q100 152, 130 122"
           fill="none"

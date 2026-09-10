@@ -16,12 +16,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
-/**
- * Tester den autorative logikken i handleJoin()/FamilyRepository mot en ekte
- * lokal Postgres — dette er kjernen i familie-medlemskap, så testene dekker
- * nettopp de tingene som IKKE må kunne omgås: engangsbruk av invite_code,
- * maks 2 foreldre per familie, og at feil kode ikke oppretter noe.
- */
 class JoinRoutesTest {
     private val database = Database.connect(
         url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",
@@ -110,9 +104,6 @@ class JoinRoutesTest {
         val parent2Sub = sub()
         handleJoin(inviteCode, parent2Sub, "b@example.com", "B", repository)
 
-        // Koden er allerede invalidert av forelder 2, men verifiser i tillegg at selv
-        // om noen fikk tak i en (hypotetisk gyldig) kode, håndhever repository et
-        // hardt tak på 2 foreldre og avviser join direkte.
         val parent3Sub = sub()
         val result = repository.joinFamilyWithInviteCode(inviteCode, parent3Sub, "c@example.com", "C")
 

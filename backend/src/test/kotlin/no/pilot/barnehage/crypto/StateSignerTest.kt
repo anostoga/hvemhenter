@@ -16,8 +16,7 @@ class StateSignerTest {
 
     @Test
     fun `payload med kolon (join- og reconnect-prefiks) rundtrippes korrekt`() {
-        // Regresjonstest: payload inneholder selv kolon (f.eks. "join:kode123"),
-        // så verify() må splitte på SISTE kolon (utløpstid), ikke splitte alt på ":".
+
         val joinState = signer.sign("join:min-invitasjonskode")
         assertEquals("join:min-invitasjonskode", signer.verify(joinState))
 

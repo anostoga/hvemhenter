@@ -1,10 +1,5 @@
 import { Skeleton } from "@/components/ui/skeleton";
 
-/**
- * Suspense-fallback for /profil — speiler skjemaets struktur (label + input,
- * avatar + knapp, lagre-knapp) med `Skeleton`-plassholdere, samme
- * begrunnelse som `WeekCalendarSkeleton`/`FamilieSkeleton`.
- */
 export function ProfilSkeleton() {
   return (
     <div className="flex flex-col gap-6">

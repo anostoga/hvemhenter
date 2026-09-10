@@ -1,12 +1,5 @@
 import Link from "next/link";
 
-/**
- * Vises på alle sider (se layout.tsx), også for uinnloggede besøkende —
- * derfor en ren server-komponent uten avhengighet til `who`/sesjon, i
- * motsetning til `Nav`. Bredden speiler header/innhold-wrapperen i
- * layout.tsx (samme `max-w`/padding), slik at lenkene visuelt står på linje
- * med resten av siden.
- */
 export function Footer() {
   return (
     <footer className="w-full border-t border-border">

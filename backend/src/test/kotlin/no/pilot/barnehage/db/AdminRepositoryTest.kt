@@ -15,13 +15,6 @@ import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
-/**
- * Dekker kjernen i adminfunksjonaliteten mot en ekte lokal Postgres:
- * statistikk-telling, engangsbruk av admin-genererte invitasjonskoder, og at
- * en slik kode OPPRETTER en ny familie (i motsetning til families.invite_code,
- * som kun lar forelder 2 bli med i en eksisterende familie) — se JoinRoutesTest
- * for de tilsvarende testene av FAMILY_CREATION_CODE/families.invite_code.
- */
 class AdminRepositoryTest {
     private val database = Database.connect(
         url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",
@@ -101,8 +94,6 @@ class AdminRepositoryTest {
         val newParentSub = sub()
         val newFamilyId = handleJoin(created.code, newParentSub, "b@example.com", "B", familyRepository, adminRepository)!!
 
-        // Skal ikke kaste (regresjonstest for FK-en fikset i V8-migrasjonen —
-        // se invite_codes_used_by_family_id_fkey, tidligere ON DELETE NO ACTION).
         familyRepository.deleteFamily(UUID.fromString(newFamilyId))
 
         val afterDelete = adminRepository.listInviteCodes().first { it.code == created.code }

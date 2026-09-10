@@ -1,5 +1,3 @@
-// Speiler modellene i backend/src/main/kotlin/no/pilot/barnehage/domain/Models.kt
-
 export type AssignmentType = "DROPOFF" | "PICKUP";
 export type AssignmentSource = "AUTO" | "MANUAL";
 
@@ -10,8 +8,7 @@ export interface Parent {
   connected: boolean;
   calendarId: string | null;
   availabilityCalendarId: string | null;
-  // Sann for en "hjelper" (typisk en slektning) som kan tildeles levering/henting,
-  // men aldri logger inn selv — se backend domain/Models.kt.
+
   isHelper: boolean;
 }
 
@@ -34,8 +31,7 @@ export interface Suggestion {
 
 export interface Family {
   id: string;
-  // null når familien allerede har 2 foreldre (koden er engangsbruk og
-  // invalideres server-side når forelder #2 blir med, se backend FamilyRepository).
+
   inviteCode: string | null;
 }
 
@@ -76,20 +72,13 @@ export interface Profile {
   avatar: string | null;
 }
 
-// Samme faste sett som backend sin validering (se routes/ProfileRoutes.kt
-// ALLOWED_AVATARS) — holdt i sync manuelt.
 export const AVATARS = ["🐻", "🦊", "🐰", "🐼", "🐨", "🐯", "🦁", "🐵", "🐶", "🐱", "🐸", "🦄"];
 
-// Relativ URL — Next.js proxyer /api/* og /auth/* videre til backend (se
-// rewrites() i next.config.mjs), så nettleseren snakker kun med Next.js sitt
-// eget origin. Ingen CORS-håndtering nødvendig lenger.
 const API_BASE_URL = "";
 
 async function handle<T>(response: Response): Promise<T> {
   if (response.status === 401) {
-    // Sesjonen mangler/er utløpt — send brukeren til forsiden i stedet for en
-    // kryptisk feilmelding. Forsiden viser selv lenker til innlogging/join,
-    // så dette er ikke en blindvei slik /join alene var (den krevde en kode).
+
     window.location.href = "/";
     throw new Error("ikke innlogget");
   }
@@ -100,15 +89,10 @@ async function handle<T>(response: Response): Promise<T> {
   return response.json() as Promise<T>;
 }
 
-// Alle /api/*-kall sender med `credentials: "include"` — sesjonscookien
-// (satt av backend etter innlogging) er det eneste som knytter kallet til
-// riktig familie, se auth/SessionAuth.kt.
 export const api = {
   authStartUrl: () => `${API_BASE_URL}/auth/google/start`,
   loginUrl: () => `${API_BASE_URL}/auth/login`,
 
-  // Svarer alltid 200 (også uinnlogget) — trygt å kalle fra en offentlig side
-  // uten at det trigger 401-redirecten i handle().
   whoAmI: () =>
     fetch(`${API_BASE_URL}/auth/whoami`, { credentials: "include" }).then((r) => r.json() as Promise<WhoAmI>),
 
@@ -146,14 +130,11 @@ export const api = {
       const body = await response.text();
       throw new Error(`API-kall feilet (${response.status}): ${body}`);
     }
-    // 204 No Content — ingen body å parse
+
   },
 
   getFamily: () => fetch(`${API_BASE_URL}/api/family`, { credentials: "include" }).then((r) => handle<Family>(r)),
 
-  // "Hjelpere" — personer (typisk slektninger) som kan tildeles levering/henting,
-  // men aldri logger inn selv. Dukker opp i /api/parents (getParents) på lik
-  // linje med innloggede foreldre etter oppretting — se backend FamilyRoutes.
   addHelper: (input: { name: string; avatar?: string | null }) =>
     fetch(`${API_BASE_URL}/api/family/helpers`, {
       method: "POST",
@@ -170,9 +151,6 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
 
-  // Kaster hvis hjelperen fortsatt har tildelinger (409) — kalleren bør vise
-  // feilmeldingen fra responsen i stedet for en generisk feil, se
-  // HelpersManager.tsx.
   removeHelper: async (id: string) => {
     const response = await fetch(`${API_BASE_URL}/api/family/helpers/${id}`, {
       method: "DELETE",
@@ -186,11 +164,9 @@ export const api = {
       const body = await response.text();
       throw new Error(`API-kall feilet (${response.status}): ${body}`);
     }
-    // 204 No Content — ingen body å parse
+
   },
 
-  // Kalenderen er nå knyttet til DEN INNLOGGEDE BRUKEREN selv, ikke hele
-  // familien — tildelinger denne brukeren er satt opp med skrives dit.
   getMyCalendar: () =>
     fetch(`${API_BASE_URL}/api/calendars/mine`, { credentials: "include" }).then((r) => handle<MyCalendar>(r)),
 
@@ -202,9 +178,6 @@ export const api = {
       body: JSON.stringify({ calendarId, availabilityCalendarId, availabilityDisabled }),
     }).then((r) => handle<MyCalendar>(r)),
 
-  // Returnerer `null` (i stedet for å kaste) når brukeren ikke har koblet til
-  // Google ennå (409) — det er en forventet tilstand UI-et skal falle tilbake
-  // fra til fritekst-input, ikke en feil å vise som en generell feilmelding.
   getAvailableCalendars: async (): Promise<AvailableCalendar[] | null> => {
     const response = await fetch(`${API_BASE_URL}/api/calendars/available`, { credentials: "include" });
     if (response.status === 401) {
@@ -231,12 +204,6 @@ export const api = {
       body: JSON.stringify(input),
     }).then((r) => handle<Profile>(r)),
 
-  // Sletter kontoen PERMANENT (egen forelder-rad, fremtidige tildelinger,
-  // Google-tilgang og — hvis dette var siste innloggede forelder — hele
-  // familien, se backend AccountRoutes). Ingen 401-håndtering nødvendig her
-  // (i motsetning til de andre kallene): svaret er nettopp at brukeren ikke
-  // lenger er innlogget, og kalleren navigerer uansett bort etterpå (se
-  // ProfilClient.tsx).
   deleteAccount: async () => {
     const response = await fetch(`${API_BASE_URL}/api/account`, {
       method: "DELETE",
@@ -246,12 +213,9 @@ export const api = {
       const body = await response.text();
       throw new Error(`API-kall feilet (${response.status}): ${body}`);
     }
-    // 204 No Content — ingen body å parse
+
   },
 
-  // Admin-kall — krever isAdmin (se AdminRoutes.kt), gir 403 hvis ikke. `handle()`
-  // dekker kun 401 spesielt (send til "/"); 403 kastes som en vanlig feil som
-  // AdminClient.tsx fanger opp og viser/redirecter fra selv (se der).
   getAdminStats: () =>
     fetch(`${API_BASE_URL}/api/admin/stats`, { credentials: "include" }).then((r) => handle<AdminStats>(r)),
 

@@ -9,15 +9,6 @@ interface AdminClientProps {
   initialInviteCodes: AdminInviteCode[];
 }
 
-/**
- * Adminverktøy: aggregert statistikk (antall familier/brukere) + oppretting
- * av nye invitasjonskoder for å starte en helt ny familie (se backend
- * AdminRoutes.kt/AdminRepository.kt). Selve admin-sjekken skjer utelukkende
- * server-side (både her via SSR-redirect i page.tsx, og i hvert enkelt
- * API-kall via `authenticate(SESSION_AUTH_NAME)` + `isAdmin`-sjekk i
- * AdminRoutes.kt) — denne komponenten stoler ikke på noe klient-tilstand for
- * å avgjøre tilgang.
- */
 export default function AdminClient({ initialStats, initialInviteCodes }: AdminClientProps) {
   const [stats, setStats] = useState(initialStats);
   const [inviteCodes, setInviteCodes] = useState(initialInviteCodes);
@@ -31,8 +22,7 @@ export default function AdminClient({ initialStats, initialInviteCodes }: AdminC
     try {
       const created = await api.createAdminInviteCode();
       setInviteCodes((prev) => [created, ...prev]);
-      // Oppdater familietallet er ikke riktig her (koden er ikke brukt ennå) —
-      // kun invitasjonskode-listen endres av denne handlingen.
+
     } catch {
       setError("Kunne ikke opprette invitasjonskode. Prøv igjen.");
     } finally {
@@ -51,8 +41,7 @@ export default function AdminClient({ initialStats, initialInviteCodes }: AdminC
     try {
       setStats(await api.getAdminStats());
     } catch {
-      // Feil ved oppdatering er ikke kritisk — de opprinnelige (SSR-hentede)
-      // tallene vises fortsatt, bare ikke helt ferske.
+
     }
   }
 

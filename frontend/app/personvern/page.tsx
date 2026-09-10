@@ -2,17 +2,6 @@ export const metadata = {
   title: "Personvernerklæring — HvemHenter.no",
 };
 
-/**
- * Enkel, statisk personvernside — ingen SSR-datahenting, ingen
- * innloggingskrav (lenkes fra Footer og er synlig for alle besøkende).
- * Innholdet er basert på hva backend faktisk lagrer (se
- * backend/src/main/kotlin/no/pilot/barnehage/db/PostgresTables.kt og
- * db/migration/*.sql) — hold denne siden oppdatert hvis datamodellen endres.
- *
- * Hver `<h2>` pakkes inn i en egen `<section>` — globals.css sin
- * `section { @apply mb-8; }` gir dermed luft mellom overskrift-blokkene uten
- * at vi må style hver enkelt overskrift/paragraf manuelt.
- */
 export default function PersonvernPage() {
   return (
     <main>

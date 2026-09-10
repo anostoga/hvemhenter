@@ -11,12 +11,6 @@ export const metadata = {
   title: "Familie — Barnehage-planlegger",
 };
 
-/**
- * Suspense-fallback som speiler den ekte seksjon-strukturen under
- * (medlemsliste, hjelpere + invitasjonskode) — se `FamilieData` for hvorfor
- * SSR-hentingen må ligge i en egen async komponent for at `<Suspense>` skal
- * ha noe å vente på.
- */
 function FamilieSkeleton() {
   return (
     <>
@@ -46,13 +40,6 @@ function FamilieSkeleton() {
   );
 }
 
-/**
- * Egen async komponent for selve SSR-hentingen (foreldre + invitasjonskode).
- * Selve mutasjonene (legg til/fjern hjelper) skjer i `<HelpersManager>`
- * (client-komponent) — se den filen for begrunnelsen, samme mønster som
- * ProfilClient/InnstillingerClient. Invitasjons-seksjonen under er fortsatt
- * ren visning uten interaktivitet.
- */
 async function FamilieData() {
   let parents: Parent[];
   let family: Family | null;
@@ -62,8 +49,7 @@ async function FamilieData() {
     if (e instanceof UnauthorizedError) {
       redirect("/");
     }
-    // Backend nede/annen feil under SSR: vis siden med tomt innhold i stedet
-    // for å la hele siden feile (samme fail-soft-filosofi som getServerWhoAmI).
+
     parents = [];
     family = null;
   }
@@ -92,18 +78,6 @@ async function FamilieData() {
   );
 }
 
-/**
- * Viser hvem som er med i familien (parents fra /api/parents, både innloggede
- * foreldre og hjelpere) og invitasjonskoden andre trenger for å bli med
- * (family.inviteCode). Koden er engangsbruk og blir `null` server-side så
- * snart familien har fått forelder #2 — da er det ingen kode igjen å vise.
- *
- * Selve siden er en Server Component (data hentet server-side via
- * `getServerParents`/`getServerFamily`, se lib/server-api.ts, strømmet inn
- * gjennom en ekte `<Suspense>`-grense mens `<FamilieSkeleton>` vises) — kun
- * legg til/fjern-hjelper-delen er en client-komponent (`<HelpersManager>`),
- * se den filen.
- */
 export default function FamiliePage() {
   return (
     <main>

@@ -25,17 +25,13 @@ data class GoogleUserInfo(
     val name: String? = null,
 )
 
-/** Konfigurasjon lest fra miljøvariabler. Ingen hemmeligheter hardkodes. */
 data class GoogleOAuthConfig(
     val clientId: String,
     val clientSecret: String,
     val redirectUri: String,
 ) {
     companion object {
-        /** Faller tilbake til plassholderverdier når MOCK_GOOGLE_AUTH=true og ekte
-         * Google-nøkler ikke er satt — appen konstruerer likevel en GoogleOAuthClient
-         * ved oppstart (se Routing.kt), men den brukes aldri i mock-modus siden
-         * /auth/mock-login erstatter hele OAuth-rundturen. */
+
         fun fromEnv(): GoogleOAuthConfig {
             val mockAuth = Env.get("MOCK_GOOGLE_AUTH")?.toBooleanStrictOrNull() == true
             return GoogleOAuthConfig(
@@ -55,11 +51,6 @@ private val CALENDAR_SCOPES = listOf(
     "https://www.googleapis.com/auth/calendar.readonly",
 )
 
-/**
- * Håndterer OAuth 2.0 authorization-code-flyten mot Google for kalendertilgang.
- * `state` bør inneholde parentId + en signert/HMAC-beskyttet nonce (se routes/AuthRoutes.kt)
- * for å hindre CSRF og for å kunne knytte callback til riktig forelder uten server-side sesjon.
- */
 class GoogleOAuthClient(
     private val httpClient: HttpClient,
     private val config: GoogleOAuthConfig,
@@ -99,12 +90,6 @@ class GoogleOAuthClient(
             },
         ).body()
 
-    /** Tilbakekaller et token hos Google (fjerner appens tilgang til brukerens
-     * konto helt, ikke bare lokalt) — brukt ved kontosletting (se AccountRoutes).
-     * Godtar både access- og refresh-token (Google tilbakekaller hele
-     * tilgangen uansett hvilken av dem som sendes). Kalleren bør fange feil
-     * herfra selv — et allerede utløpt/ugyldig token gir en feilrespons fra
-     * Google, men skal ikke blokkere resten av kontoslettingen. */
     suspend fun revokeToken(token: String) {
         httpClient.submitForm(
             url = "https://oauth2.googleapis.com/revoke",
@@ -114,8 +99,6 @@ class GoogleOAuthClient(
         )
     }
 
-    /** Henter stabil identitet (sub) + e-post/navn via Google sitt userinfo-endepunkt,
-     * brukt til å knytte innlogging til en `parents`-rad (google_sub). */
     suspend fun fetchUserInfo(accessToken: String): GoogleUserInfo =
         httpClient.get("https://openidconnect.googleapis.com/v1/userinfo") {
             header("Authorization", "Bearer $accessToken")

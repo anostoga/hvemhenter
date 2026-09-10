@@ -13,8 +13,7 @@ function todayIso(): string {
 }
 
 function dayLabel(date: string): string {
-  // Parses som lokal dato (ikke UTC) — unngår at "T00:00:00Z" havner på forrige
-  // dag i tidssoner vest for UTC.
+
   const d = new Date(`${date}T00:00:00`);
   return d.toLocaleDateString("nb-NO", { weekday: "short", day: "2-digit", month: "2-digit" });
 }
@@ -27,18 +26,11 @@ function parentLabel(assignment: Assignment | undefined, parents: Parent[]): str
 }
 
 interface WeekOverviewProps {
-  days: string[]; // 5 hverdager (mandag-fredag) for inneværende uke
+  days: string[];
   assignmentsByDay: Map<string, CellAssignments>;
   parents: Parent[];
 }
 
-/**
- * Skrivebeskyttet variant av `<WeekCalendar>` (se app/components/WeekCalendar.tsx)
- * — vises på forsiden som et raskt overblikk over ukens fordeling, uten
- * nedtrekkslister/knapper for å endre noe (det gjøres fortsatt kun på
- * /ukeplan). Viser derfor bare navn/avatar (eller "Ikke tildelt") som ren
- * tekst per Levering/Henting-slot, samme dag-boks-struktur som originalen.
- */
 export function WeekOverview({ days, assignmentsByDay, parents }: WeekOverviewProps) {
   const today = todayIso();
 
@@ -67,7 +59,6 @@ export function WeekOverview({ days, assignmentsByDay, parents }: WeekOverviewPr
 const DAYS = [0, 1, 2, 3, 4];
 const SLOTS = [0, 1];
 
-/** Suspense-fallback for `<WeekOverview>` — speiler strukturen uten knapperad. */
 export function WeekOverviewSkeleton() {
   return (
     <div className="overflow-x-auto">

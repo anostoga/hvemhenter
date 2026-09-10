@@ -17,11 +17,6 @@ import io.ktor.server.testing.testApplication
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
-/**
- * Tester ekte SessionAuth.kt-logikk: signert cookie gir tilgang, manipulert eller
- * manglende cookie gir 401. Dette er den viktigste sikkerhetstesten for selve
- * autentiseringsmekanismen — en svakhet her ville omgått familie-scoping i hele appen.
- */
 class SessionAuthTest {
 
     @Test
@@ -91,11 +86,7 @@ class SessionAuthTest {
         val realCookie = loginResponse.headers.getAll("Set-Cookie")?.firstOrNull { it.startsWith("bhg_session=") }
             ?: error("forventet at innlogging setter bhg_session-cookie")
         val cookieValue = realCookie.substringAfter("bhg_session=").substringBefore(";")
-        // Tukle med signaturen: reverser den signerte verdien slik at signaturen ikke lenger stemmer
-        // med det (nå endrede) innholdet — verifiserer at HMAC-signeringen faktisk håndheves.
-        // Tukle med signaturen: bytt ett hex-tegn i den signerte cookien slik at
-        // signaturen ikke lenger stemmer med innholdet — verifiserer at HMAC-
-        // signeringen faktisk håndheves (ikke bare et format-krav).
+
         val tamperedValue = tamperOneHexChar(cookieValue)
 
         val response = client.get("/beskyttet") {

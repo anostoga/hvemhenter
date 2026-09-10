@@ -2,10 +2,6 @@ export const metadata = {
   title: "Om Hvem henter — Barnehage-planlegger",
 };
 
-/**
- * Enkel, statisk informasjonsside — ingen SSR-datahenting, ingen
- * innloggingskrav (lenkes fra Footer og er synlig for alle besøkende).
- */
 export default function OmPage() {
   return (
     <main>

@@ -69,10 +69,6 @@ data class CalendarListEntry(val id: String, val summary: String, val primary: B
 @Serializable
 data class CalendarListResponse(val items: List<CalendarListEntry> = emptyList())
 
-/**
- * Tynn wrapper rundt Google Calendar API v3. Kaller med enkel retry (eksponentiell backoff,
- * 3 forsøk) ved forbigående feil (5xx/nettverk), jf. beslutning i planen.
- */
 class CalendarService(private val httpClient: HttpClient) {
     private val logger = LoggerFactory.getLogger(CalendarService::class.java)
 
@@ -100,20 +96,13 @@ class CalendarService(private val httpClient: HttpClient) {
         }
         val bodyText = httpResponse.bodyAsText()
         if (!httpResponse.status.isSuccess()) {
-            // Google returnerte en feil (f.eks. 403/404 -- ugyldig calendarId, mangler
-            // tilgang, token uten skrivetilgang). Uten denne sjekken ville koden prøve å
-            // parse feilteksten som en CalendarEventResponse og feile med en kryptisk
-            // JsonConvertException("Field 'id' is required...") i stedet for reell årsak.
+
             logger.warn("insertEvent feilet mot Google Calendar ({}): {}", httpResponse.status, bodyText)
             throw IllegalStateException("Google Calendar avviste opprettelse av hendelse (${httpResponse.status}): $bodyText")
         }
         return kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(CalendarEventResponse.serializer(), bodyText).id
     }
 
-    /** Sletter en kalenderhendelse — brukt når en tildeling erstattes med en annen
-     * forelder/tidspunkt, slik at den gamle hendelsen ikke blir hengende igjen i
-     * kalenderen uten at noen tildeling peker på den. Feiler stille (logger bare en
-     * advarsel) hvis hendelsen allerede er slettet manuelt i Google Kalender. */
     suspend fun deleteEvent(accessToken: String, calendarId: String, eventId: String) {
         try {
             withRetry("deleteEvent") {
@@ -127,7 +116,7 @@ class CalendarService(private val httpClient: HttpClient) {
     }
 
     suspend fun listUpcoming(accessToken: String, calendarId: String, timeMinIso: String, timeMaxIso: String): String {
-        // Returnerer rå JSON-tekst for enkelhets skyld i MVP; kan modelleres fullt ut senere ved behov.
+
         return withRetry("listUpcoming") {
             httpClient.get("https://www.googleapis.com/calendar/v3/calendars/$calendarId/events") {
                 header("Authorization", "Bearer $accessToken")
@@ -139,11 +128,6 @@ class CalendarService(private val httpClient: HttpClient) {
         }
     }
 
-    /**
-     * Henter hendelser (med tittel) i tidsvinduet fra en delt kalender. Brukes til å avgjøre
-     * hvilken forelder en hendelse tilhører (se matchParent i AssignmentRoutes) — freeBusy-API-et
-     * gir kun tidsrom uten tittel, og duger derfor ikke når kalenderen er delt mellom foreldrene.
-     */
     suspend fun listEvents(accessToken: String, calendarId: String, timeMinIso: String, timeMaxIso: String): List<CalendarEventItem> {
         val response: CalendarEventsResponse = withRetry("listEvents") {
             httpClient.get("https://www.googleapis.com/calendar/v3/calendars/$calendarId/events") {
@@ -157,12 +141,6 @@ class CalendarService(private val httpClient: HttpClient) {
         return response.items
     }
 
-    /**
-     * Lister kalenderne den innloggede brukeren har tilgang til (egne + delte),
-     * brukt til å la brukeren velge delt familiekalender fra en nedtrekksliste
-     * i stedet for å skrive inn en rå kalender-ID. Krever kun `calendar.readonly`
-     * (allerede en del av scopet appen ber om, se GoogleOAuthClient).
-     */
     suspend fun listCalendars(accessToken: String): List<CalendarListEntry> {
         val response: CalendarListResponse = withRetry("listCalendars") {
             httpClient.get("https://www.googleapis.com/calendar/v3/users/me/calendarList") {
@@ -181,7 +159,7 @@ class CalendarService(private val httpClient: HttpClient) {
                 lastError = e
                 logger.warn("Google Calendar-kall '$operation' feilet (forsøk ${attempt + 1}/$maxAttempts): ${e.message}")
                 if (attempt < maxAttempts - 1) {
-                    delay(200L * (1 shl attempt)) // 200ms, 400ms, 800ms
+                    delay(200L * (1 shl attempt))
                 }
             }
         }

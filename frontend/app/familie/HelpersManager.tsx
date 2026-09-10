@@ -18,46 +18,20 @@ interface HelpersManagerProps {
   initialParents: Parent[];
 }
 
-/** Felles state for både "legg til"- og "rediger"-modalen (samme skjema,
- * kun `mode`/`id` skiller dem — se `openAddDialog`/`openEditDialog` under). */
 interface HelperFormState {
   mode: "add" | "edit";
-  id: string | null; // kun satt i "edit"-modus
+  id: string | null;
   name: string;
   avatar: string | null;
 }
 
-/**
- * Kombinert visning av "Medlemmer" (innloggede foreldre, ren visning — som
- * før) og "Hjelpere" (personer som kan tildeles levering/henting, typisk
- * slektninger, men som ALDRI logger inn selv — se backend FamilyRoutes/
- * FamilyRepository.addHelper/updateHelper). Flyttet hit fra
- * `app/familie/page.tsx` (som nå er en ren Server Component) fordi
- * legg til/rediger/fjern-hjelper krever client-side mutasjon, samme mønster
- * som ProfilClient/InnstillingerClient.
- *
- * `initialParents` (BEGGE typer, se /api/parents) hentes server-side FØR
- * HTML-en sendes, og eies deretter lokalt her — nye/endrede/fjernede
- * hjelpere oppdaterer kun denne komponentens state, ingen full
- * sideinnlasting eller `router.refresh()` nødvendig siden ingenting annet på
- * siden (nav, invitasjonskode) avhenger av listen over hjelpere.
- *
- * Legg til og rediger deler samme modal/skjema (`<Dialog>` under) — kun
- * `formState.mode` skiller om innsending kaller `api.addHelper` eller
- * `api.updateHelper`. Avatar-valget er en enkel grid inline i modalen (ikke
- * en egen nestet dialog, i motsetning til ProfilClient sin avatar-velger)
- * for å unngå kompleksiteten med nestede Radix-dialoger.
- */
 export default function HelpersManager({ initialParents }: HelpersManagerProps) {
   const [parents, setParents] = useState<Parent[]>(initialParents);
   const [formState, setFormState] = useState<HelperFormState | null>(null);
   const [saving, setSaving] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  // Hjelperen brukeren har bedt om å fjerne, mens vi venter på bekreftelse i
-  // modalen (se `requestRemove`/`confirmRemove` under) — selve slettingen
-  // (`handleRemove`) skjer først når brukeren bekrefter, samme mønster som
-  // "Nullstill uken" i KalenderClient.tsx.
+
   const [pendingRemove, setPendingRemove] = useState<Parent | null>(null);
 
   const members = parents.filter((p) => !p.isHelper);
@@ -82,9 +56,7 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
       const trimmedName = formState.name.trim();
       if (formState.mode === "add") {
         const helper = await api.addHelper({ name: trimmedName, avatar: formState.avatar });
-        // Resten av Parent-feltene (connected/calendarId/osv.) er alltid
-        // tomme/false for en fersk hjelper — samme tilstand som backend selv
-        // returnerer fra findParents() rett etter oppretting.
+
         setParents((prev) => [
           ...prev,
           {
@@ -124,7 +96,6 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
     }
   }
 
-  // Åpner bekreftelsesmodalen i stedet for å slette med en gang.
   function requestRemove(helper: Parent) {
     setPendingRemove(helper);
   }

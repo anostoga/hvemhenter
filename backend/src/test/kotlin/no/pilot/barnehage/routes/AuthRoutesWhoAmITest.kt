@@ -30,13 +30,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
-/**
- * Tester /auth/whoami og /auth/logout — de nye endepunktene som lar forsiden vise
- * riktig meny (innlogget/ikke) uten å tvinge uinnloggede besøkende gjennom en 401.
- * (Selve Google OAuth-utvekslingen i /auth/login og /auth/google/callback testes ikke
- * her — det krever et ekte kall mot Google og dekkes av manuell verifisering/JoinRoutesTest
- * sin dekning av handleJoin()-logikken som begge callback-grenene deler.)
- */
 class AuthRoutesWhoAmITest {
     private val database = Database.connect(
         url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",

@@ -11,16 +11,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 
-/**
- * Dekker `updateParentCalendars`/`effectiveAvailabilityCalendarId()` mot en
- * ekte lokal Postgres — spesielt normaliseringen som hindrer at en forelder
- * havner i en selvmotsigende tilstand (både en spesifikk
- * tilgjengelighetskalender OG "deaktivert" satt samtidig), at
- * `availabilityDisabled = true` faktisk lar en tidligere valgt
- * tilgjengelighetskalender-registrering fjernes, og at `calendarId` selv kan
- * settes til `null` (brukeren velger å ikke skrive tildelinger til noen
- * kalender i det hele tatt).
- */
 class FamilyRepositoryTest {
     private val database = Database.connect(
         url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",
@@ -45,12 +35,7 @@ class FamilyRepositoryTest {
         val newFamilyId = FamiliesTable.insert { it[sharedCalendarId] = "cal-shared" }[FamiliesTable.id]
         familyId = newFamilyId
         parentId = ParentsTable.insert {
-            // NB: bruker `newFamilyId` (ikke `familyId`) på høyre side her — unqualifisert
-            // `familyId` inne i denne lambdaen ville resolvet til `ParentsTable.familyId`
-            // (kolonnen, siden `this` er den implisitte mottakeren), IKKE testklassens
-            // `familyId: UUID`-felt, og gitt en kryptisk "invalid reference to FROM-clause
-            // entry"-feil fra Postgres. Samme fallgruve håndteres med
-            // `this@FamilyScopedAssignmentRepository.familyId` i FamilyScopedAssignmentRepository.kt.
+
             it[ParentsTable.familyId] = newFamilyId
             it[googleSub] = "sub-${UUID.randomUUID()}"
             it[email] = "p@example.com"
@@ -97,8 +82,6 @@ class FamilyRepositoryTest {
     fun `availabilityDisabled=true normaliserer bort en medsendt tilgjengelighetskalender`() {
         createParent()
 
-        // Selvmotsigende input (en spesifikk kalender-id OG deaktivert samtidig) skal
-        // ikke kunne lagres i databasen — deaktivert vinner, kalender-id nulles ut.
         repository.updateParentCalendars(parentId, "skrive-kalender", "tilgjengelighet-kalender", availabilityDisabled = true)
 
         val parent = repository.findParent(parentId)!!
@@ -128,9 +111,7 @@ class FamilyRepositoryTest {
 
         val parent = repository.findParent(parentId)!!
         assertNull(parent.calendarId)
-        // Uten en skrivekalender degraderer tilgjengelighetssjekken naturlig til
-        // null også (ingen fallback-kalender å falle tilbake på) — samme
-        // fail-soft-oppførsel som når forelderen aldri har valgt noen kalender.
+
         assertNull(parent.effectiveAvailabilityCalendarId())
     }
 
@@ -147,7 +128,7 @@ class FamilyRepositoryTest {
 
     @Test
     fun `addHelper oppretter en hjelper uten googleSub eller email`() {
-        createParent() // sørger for familyId er satt (via createParent) — sletter i tearDown
+        createParent()
         val helper = repository.addHelper(familyId, "Bestemor", "🐻")
 
         assertEquals(true, helper.isHelper)
@@ -160,8 +141,6 @@ class FamilyRepositoryTest {
         assertEquals(true, reloaded.isHelper)
         assertNull(reloaded.googleSub)
 
-        // Rydd opp den ekstra hjelper-raden selv, siden testklassens @AfterTest kun
-        // sletter `parentId` (den vanlige forelderen created av createParent()).
         transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
     }
 
@@ -206,7 +185,7 @@ class FamilyRepositoryTest {
     fun `removeHelper er scopet til familien - kan ikke fjerne en annen families hjelper`() {
         createParent()
         val helper = repository.addHelper(familyId, "Fetter Per", null)
-        val otherFamilyId = UUID.randomUUID() // finnes ikke i databasen — nok til å bevise scopingen
+        val otherFamilyId = UUID.randomUUID()
 
         val removed = repository.removeHelper(otherFamilyId, helper.id)
 

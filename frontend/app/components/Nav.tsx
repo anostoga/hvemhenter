@@ -13,31 +13,10 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-/**
- * Vises på alle sider (se layout.tsx). `initialWho` hentes SERVER-SIDE (se
- * RootLayout og lib/server-api.ts sin getServerWhoAmI()) FØR HTML-en sendes
- * til nettleseren, slik at riktig meny og visningsnavn er der ved første
- * maling — ingen client-side /auth/whoami-kall, ingen "blink"-tilstand, og
- * ingen egen cookie trengs for å bære navnet (i motsetning til den tidligere
- * `bhg_logged_in`-cookien, som ble fjernet igjen nettopp for å unngå
- * personopplysninger i en klientlesbar cookie — se plan.md i sesjonsmappen
- * for sammenligningen som begrunnet dette valget).
- *
- * Selve autorisasjonen er fortsatt utelukkende den signerte, HttpOnly
- * `bhg_session`-cookien (se auth/SessionAuth.kt) — uendret av dette. Endrer
- * seg sesjonen (utlogging i en annen fane e.l.) mens denne fanen står åpen,
- * oppdages det ikke før neste fulle sideinnlasting eller et 401-svar fra et
- * API-kall (se handle() i lib/api.ts, som da sender brukeren til "/").
- */
 export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   const who = initialWho;
   const pathname = usePathname();
 
-  // Understreker menyvalget for siden man står på (f.eks. Ukeplan når man er
-  // på /ukeplan), i tillegg til den generelle lenke-understrekingen fra
-  // globals.css (som disse elementene ellers opter ut av via .no-underline).
-  // Eksakt match på pathname — ingen prefiks-matching, siden f.eks. "/" ikke
-  // skal fremstå som aktiv når man er på "/ukeplan".
   function navLinkClassName(href: string) {
     return pathname === href ? "underline underline-offset-2" : "no-underline";
   }
@@ -94,12 +73,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
           <>
             <Link href="/join" className="no-underline">Bli med i en familie</Link>
             {process.env.NODE_ENV !== "production" && (
-              // Kun synlig i lokal dev (npm run dev) — lar deg teste innlogging uten en
-              // ekte Google-klient. Krever i tillegg MOCK_GOOGLE_AUTH=true i backend/.env,
-              // se README "Mock Google-innlogging (lokal dev)". Denne lenken vises alltid
-              // i dev uavhengig av det flagget — /auth/mock-login svarer selv 404 hvis
-              // MOCK_GOOGLE_AUTH ikke er satt på backend-siden. Vanlig <a> (ikke Link),
-              // siden dette er en ekte backend-rute, ikke en Next.js-side.
+
               <a className="no-underline" href="/auth/mock-login">Mock-innlogging (dev)</a>
             )}
           </>

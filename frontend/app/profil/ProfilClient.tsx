@@ -19,13 +19,6 @@ interface ProfilClientProps {
   initialProfile: Profile;
 }
 
-/**
- * Skjema-/mutasjonslogikken for profilsiden — flyttet hit fra
- * `app/profil/page.tsx` (nå en Server Component, se den filen) for at
- * `initialProfile` skal kunne hentes server-side FØR HTML-en sendes, mens
- * selve redigeringen (navn/avatar-valg + lagring) fortsatt skjer client-side
- * akkurat som før.
- */
 export default function ProfilClient({ initialProfile }: ProfilClientProps) {
   const router = useRouter();
   const [name, setName] = useState(initialProfile.name);
@@ -35,11 +28,6 @@ export default function ProfilClient({ initialProfile }: ProfilClientProps) {
   const [error, setError] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
-  // Etternavnet i det LAGREDE navnet (ikke det ev. uendrede feltet over) —
-  // brukeren må skrive dette for å bekrefte sletting, se `<Dialog>` under.
-  // Kun en UX-sperre mot utilsiktet klikk (selve sikkerheten er sesjonen
-  // alene, se backend AccountRoutes) — matches derfor ganske slapt (trim +
-  // små bokstaver), ikke en reell valideringsregel.
   const lastName = initialProfile.name.trim().split(/\s+/).pop() ?? "";
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState("");
@@ -55,9 +43,7 @@ export default function ProfilClient({ initialProfile }: ProfilClientProps) {
     try {
       await api.updateProfile({ name, avatar });
       setSaved(true);
-      // Nav-navnet/avataren hentes server-side i layout.tsx (se getServerWhoAmI) —
-      // router.refresh() kjører serverkomponentene på nytt uten en full
-      // sideinnlasting, slik at toppmenyen viser det nye navnet/avataren med en gang.
+
       router.refresh();
     } catch (e) {
       setError(String(e));
@@ -78,10 +64,7 @@ export default function ProfilClient({ initialProfile }: ProfilClientProps) {
     setDeleting(true);
     try {
       await api.deleteAccount();
-      // Sesjonen er allerede tømt server-side (se backend AccountRoutes) —
-      // full sideinnlasting (ikke router.push) slik at Nav/layout garantert
-      // laster det uinnloggede menyoppsettet på nytt, samme mønster som
-      // utlogging i Nav.tsx.
+
       window.location.href = "/";
     } catch (e) {
       setDeleteError(String(e));

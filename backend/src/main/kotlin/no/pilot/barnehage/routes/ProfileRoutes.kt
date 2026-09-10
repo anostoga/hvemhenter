@@ -14,8 +14,6 @@ import no.pilot.barnehage.auth.userSession
 import no.pilot.barnehage.db.FamilyRepository
 import java.util.UUID
 
-/** Samme faste sett som frontend sin avatar-velger (se lib/api.ts `AVATARS`) —
- * holdt i sync manuelt, akkurat som Exposed-tabellene speiler Flyway-skjemaet. */
 val ALLOWED_AVATARS = setOf("🐻", "🦊", "🐰", "🐼", "🐨", "🐯", "🦁", "🐵", "🐶", "🐱", "🐸", "🦄")
 
 @Serializable
@@ -24,11 +22,6 @@ data class ProfileResponse(val name: String, val avatar: String? = null)
 @Serializable
 data class UpdateProfileRequest(val name: String, val avatar: String? = null)
 
-/**
- * Lar den innloggede brukeren se/endre sitt EGET visningsnavn og avatar —
- * `parentId` hentes kun fra sesjonen, aldri fra klienten, samme mønster som
- * resten av API-et (se FamilyRoutes/AssignmentRoutes).
- */
 fun Route.profileRoutes(familyRepository: FamilyRepository) {
     authenticate(SESSION_AUTH_NAME) {
         get("/api/profile") {
