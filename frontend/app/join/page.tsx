@@ -10,7 +10,7 @@ function NotRegisteredNotice() {
   const params = useSearchParams();
   if (params.get("error") !== "ikke_registrert") return null;
   return (
-    <p role="alert">
+    <p role="alert" className="text-destructive">
       Fant ingen familie knyttet til Google-kontoen din ennå. Skriv inn koden du har fått under for å
       bli med i en familie.
     </p>
@@ -39,7 +39,7 @@ export default function JoinPage() {
   }
 
   return (
-    <main>
+    <main className="flex flex-col gap-6">
       <h1>Bli med i en familie</h1>
       <Suspense fallback={null}>
         <NotRegisteredNotice />
@@ -48,16 +48,19 @@ export default function JoinPage() {
         <CodeFromQuery onCode={setCode} />
       </Suspense>
       <p>Skriv inn koden du har fått for å opprette en ny familie, eller invitasjonskoden fra den andre forelderen.</p>
-      <form onSubmit={handleSubmit}>
-        <Label htmlFor="code">Kode</Label>
-        <Input
-          id="code"
-          name="code"
-          value={code}
-          onChange={(e) => setCode(e.target.value)}
-          required
-        />
-        <Button type="submit" disabled={status === "loading"}>
+      <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor="code">Kode</Label>
+          <Input
+            id="code"
+            name="code"
+            className="max-w-xs"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            required
+          />
+        </div>
+        <Button type="submit" disabled={status === "loading"} className="self-start">
           Fortsett
         </Button>
       </form>
