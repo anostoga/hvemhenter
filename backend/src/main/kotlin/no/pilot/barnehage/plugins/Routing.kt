@@ -44,7 +44,7 @@ fun Application.configureRouting(database: Database) {
     val assignmentService = AssignmentService()
     val familyRepository = FamilyRepository(database)
     val adminRepository = AdminRepository(database)
-    val frontendSuccessUrl = Env.get("FRONTEND_URL")?.let { "$it/tilkoblet" } ?: "/"
+    val frontendSuccessUrl = Env.get("FRONTEND_URL") ?: "/"
     val frontendJoinUrl = Env.get("FRONTEND_URL")?.let { "$it/join" } ?: "/join"
 
     routing {
