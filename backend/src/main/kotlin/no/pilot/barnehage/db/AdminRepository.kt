@@ -55,6 +55,16 @@ class AdminRepository(private val database: Database) {
             .firstOrNull()?.toInviteCodeRecord()
     }
 
+    /**
+     * Finn en admin-generert kode uavhengig av bruksstatus. Brukes for å avgjøre om en
+     * allerede brukt kode fortsatt kan slippe inn en andre forelder i familien den opprettet.
+     */
+    fun findInviteCode(code: String): InviteCodeRecord? = transaction(database) {
+        InviteCodesTable.selectAll()
+            .where { InviteCodesTable.code eq code }
+            .firstOrNull()?.toInviteCodeRecord()
+    }
+
     fun markInviteCodeUsed(id: UUID, familyId: UUID) = transaction(database) {
         InviteCodesTable.update({ InviteCodesTable.id eq id }) {
             it[InviteCodesTable.usedAt] = java.time.Instant.now()

@@ -53,7 +53,7 @@ fun Route.joinRoutes(
         val familyCreationCode = Env.get("FAMILY_CREATION_CODE")
         val looksValid = code == familyCreationCode ||
             familyRepository.findFamilyByInviteCode(code) != null ||
-            adminRepository?.findUnusedInviteCode(code) != null
+            (adminRepository != null && isAdminCodeUsable(adminRepository, familyRepository, code))
         if (!looksValid) {
             return@get call.respond(HttpStatusCode.BadRequest, JoinErrorResponse("ugyldig kode"))
         }
@@ -95,8 +95,15 @@ fun handleJoin(
     val existingParent = familyRepository.findParentByGoogleSub(googleSub)
     if (existingParent != null) return existingParent.familyId.toString()
 
-    val adminCode = adminRepository?.findUnusedInviteCode(code)
+    val adminCode = adminRepository?.findInviteCode(code)
     if (adminCode != null) {
+        val alreadyUsedFamilyId = adminCode.usedByFamilyId
+        if (alreadyUsedFamilyId != null) {
+            // Koden er brukt før — la en andre forelder bli med i samme familie hvis det er plass.
+            val joined = familyRepository.addParentToFamily(alreadyUsedFamilyId, googleSub, email, name)
+            return joined?.familyId?.toString()
+        }
+
         val inviteCode = generateInviteCode()
         val parent = familyRepository.createFamilyWithFirstParent(
             sharedCalendarId = "",
@@ -111,6 +118,12 @@ fun handleJoin(
 
     val joined = familyRepository.joinFamilyWithInviteCode(code, googleSub, email, name) ?: return null
     return joined.familyId.toString()
+}
+
+private fun isAdminCodeUsable(adminRepository: AdminRepository, familyRepository: FamilyRepository, code: String): Boolean {
+    val adminCode = adminRepository.findInviteCode(code) ?: return false
+    val usedByFamilyId = adminCode.usedByFamilyId ?: return true
+    return familyRepository.parentCount(usedByFamilyId) < 2
 }
 
 private fun generateInviteCode(): String {

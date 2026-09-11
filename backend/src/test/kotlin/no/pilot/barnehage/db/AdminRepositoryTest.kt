@@ -66,7 +66,25 @@ class AdminRepositoryTest {
     }
 
     @Test
-    fun `admin-generert kode kan kun brukes en gang`() {
+    fun `admin-generert kode kan brukes av en andre forelder i samme familie`() {
+        Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
+        val adminSub = sub()
+        handleJoin("riktig-kode", adminSub, "admin@example.com", "Admin", familyRepository)
+        val admin = familyRepository.findParentByGoogleSub(adminSub)!!
+        val created = adminRepository.createInviteCode(admin.id)
+
+        val firstUseSub = sub()
+        val firstFamilyId = handleJoin(created.code, firstUseSub, "b@example.com", "B", familyRepository, adminRepository)!!
+
+        val secondUseSub = sub()
+        val secondFamilyId = handleJoin(created.code, secondUseSub, "c@example.com", "C", familyRepository, adminRepository)
+
+        assertEquals(firstFamilyId, secondFamilyId, "andre forelder skal bli med i samme familie som den admin-koden opprettet")
+        assertEquals(2, familyRepository.parentCount(UUID.fromString(firstFamilyId)))
+    }
+
+    @Test
+    fun `admin-generert kode avvises for en tredje forelder`() {
         Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
         val adminSub = sub()
         handleJoin("riktig-kode", adminSub, "admin@example.com", "Admin", familyRepository)
@@ -75,12 +93,14 @@ class AdminRepositoryTest {
 
         val firstUseSub = sub()
         handleJoin(created.code, firstUseSub, "b@example.com", "B", familyRepository, adminRepository)
-
         val secondUseSub = sub()
-        val secondAttempt = handleJoin(created.code, secondUseSub, "c@example.com", "C", familyRepository, adminRepository)
+        handleJoin(created.code, secondUseSub, "c@example.com", "C", familyRepository, adminRepository)
 
-        assertNull(secondAttempt, "admin-kode skal være invalidert etter første bruk")
-        assertNull(familyRepository.findParentByGoogleSub(secondUseSub))
+        val thirdUseSub = sub()
+        val thirdAttempt = handleJoin(created.code, thirdUseSub, "d@example.com", "D", familyRepository, adminRepository)
+
+        assertNull(thirdAttempt, "admin-kode skal ikke gi plass til en tredje forelder")
+        assertNull(familyRepository.findParentByGoogleSub(thirdUseSub))
     }
 
     @Test
