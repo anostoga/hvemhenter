@@ -5,7 +5,10 @@ import io.ktor.client.call.body
 import io.ktor.client.request.forms.submitForm
 import io.ktor.client.request.get
 import io.ktor.client.request.header
+import io.ktor.client.statement.HttpResponse
+import io.ktor.client.statement.bodyAsText
 import io.ktor.http.Parameters
+import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.Env
 
@@ -17,6 +20,20 @@ data class GoogleTokenResponse(
     val scope: String? = null,
     val token_type: String? = null,
 )
+
+@Serializable
+data class GoogleTokenErrorResponse(
+    val error: String,
+    val error_description: String? = null,
+)
+
+/**
+ * Thrown when Google rejects a token exchange/refresh request, e.g. because a refresh token has
+ * been revoked or has expired from inactivity ("invalid_grant"). Distinct from a malformed
+ * success response so callers can tell "Google said no" apart from "we couldn't parse a 200".
+ */
+class GoogleTokenRefreshException(val error: String, val errorDescription: String?) :
+    Exception("Google avviste token-forespørselen: $error${errorDescription?.let { " ($it)" } ?: ""}")
 
 @Serializable
 data class GoogleUserInfo(
@@ -77,7 +94,7 @@ class GoogleOAuthClient(
                 append("redirect_uri", config.redirectUri)
                 append("grant_type", "authorization_code")
             },
-        ).body()
+        ).toTokenResponseOrThrow()
 
     suspend fun refreshAccessToken(refreshToken: String): GoogleTokenResponse =
         httpClient.submitForm(
@@ -88,7 +105,24 @@ class GoogleOAuthClient(
                 append("client_secret", config.clientSecret)
                 append("grant_type", "refresh_token")
             },
-        ).body()
+        ).toTokenResponseOrThrow()
+
+    /**
+     * Google returns 4xx with an `{"error": "..."}` body (e.g. invalid_grant when a refresh
+     * token was revoked or expired from long inactivity) instead of a GoogleTokenResponse.
+     * Deserializing that error body straight into GoogleTokenResponse previously blew up with a
+     * confusing "missing fields" error. Check the status first and surface a clear exception.
+     */
+    private suspend fun HttpResponse.toTokenResponseOrThrow(): GoogleTokenResponse {
+        if (!status.isSuccess()) {
+            val raw = bodyAsText()
+            val parsed = runCatching {
+                kotlinx.serialization.json.Json { ignoreUnknownKeys = true }.decodeFromString(GoogleTokenErrorResponse.serializer(), raw)
+            }.getOrNull()
+            throw GoogleTokenRefreshException(parsed?.error ?: "ukjent_feil", parsed?.error_description ?: raw)
+        }
+        return body()
+    }
 
     suspend fun revokeToken(token: String) {
         httpClient.submitForm(
