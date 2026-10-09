@@ -11,7 +11,7 @@ Gjelder når rødsone-delene er implementert og appen faktisk kjører mot Postgr
 ## Logging (påminnelse fra sikkerhetssjekklisten)
 - Logg `family_id`/`parent_id` ved feil, **aldri** `google_sub`, e-post eller navn
 - Logg antall hendelser hentet per kalenderoppslag (allerede implementert) — behold, ufarlig
-- Logg **aldri** `FAMILY_CREATION_CODE` eller `invite_code`-verdier, selv ved feil
+- Logg **aldri** `invite_code`-verdier eller `csrfToken`, selv ved feil
 
 ## Alarmer (minimum, gitt at dette er et hobbyprosjekt uten Prometheus/Grafana)
 - Fly.io sin innebygde helsesjekk (`/health`) er allerede konfigurert — behold

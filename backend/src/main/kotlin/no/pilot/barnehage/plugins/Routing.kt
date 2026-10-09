@@ -12,6 +12,7 @@ import no.pilot.barnehage.crypto.TokenCipher
 import no.pilot.barnehage.db.FamilyRepository
 import no.pilot.barnehage.db.TokenRepository
 import no.pilot.barnehage.db.AdminRepository
+import no.pilot.barnehage.db.OnboardingRepository
 import no.pilot.barnehage.domain.AssignmentService
 import no.pilot.barnehage.google.AccessTokenProvider
 import no.pilot.barnehage.google.CalendarService
@@ -24,6 +25,7 @@ import no.pilot.barnehage.routes.authRoutes
 import no.pilot.barnehage.routes.calendarRoutes
 import no.pilot.barnehage.routes.familyRoutes
 import no.pilot.barnehage.routes.joinRoutes
+import no.pilot.barnehage.routes.onboardingRoutes
 import no.pilot.barnehage.routes.profileRoutes
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -44,8 +46,9 @@ fun Application.configureRouting(database: Database) {
     val assignmentService = AssignmentService()
     val familyRepository = FamilyRepository(database)
     val adminRepository = AdminRepository(database)
+    val onboardingRepository = OnboardingRepository(tokenCipher, database)
     val frontendSuccessUrl = Env.get("FRONTEND_URL") ?: "/"
-    val frontendJoinUrl = Env.get("FRONTEND_URL")?.let { "$it/join" } ?: "/join"
+    val frontendOnboardingUrl = Env.get("FRONTEND_URL")?.let { "$it/velkommen" } ?: "/velkommen"
 
     routing {
         get("/health") {
@@ -61,8 +64,9 @@ fun Application.configureRouting(database: Database) {
             }
         }
 
-        authRoutes(oauthClient, stateSigner, tokenRepository, frontendSuccessUrl, frontendJoinUrl, familyRepository, adminRepository)
-        joinRoutes(oauthClient, stateSigner, familyRepository, adminRepository)
+        authRoutes(oauthClient, stateSigner, tokenRepository, onboardingRepository, frontendSuccessUrl, frontendOnboardingUrl, familyRepository)
+        onboardingRoutes(onboardingRepository, familyRepository, tokenRepository)
+        joinRoutes(oauthClient, stateSigner, familyRepository)
         familyRoutes(familyRepository, database)
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)

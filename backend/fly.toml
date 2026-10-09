@@ -1,7 +1,7 @@
 # Fly.io-konfigurasjon for backend. Billigste oppsett: delt CPU, minimalt minne.
 # Postgres-tilkobling (Supabase) settes som secret, ikke i denne filen:
 #   fly secrets set DATABASE_URL=... DATABASE_PASSWORD=... TOKEN_ENCRYPTION_KEY=... \
-#     STATE_SIGNING_SECRET=... SESSION_SIGNING_SECRET=... FAMILY_CREATION_CODE=...
+#     STATE_SIGNING_SECRET=... SESSION_SIGNING_SECRET=...
 app = "barnehage-backend"
 primary_region = "arn" # Stockholm — bytt til nærmeste region ved behov
 

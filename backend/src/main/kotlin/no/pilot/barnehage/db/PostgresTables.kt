@@ -50,6 +50,21 @@ object InviteCodesTable : Table("invite_codes") {
     override val primaryKey = PrimaryKey(id)
 }
 
+object OnboardingSessionsTable : Table("onboarding_sessions") {
+    val id = uuid("id").clientDefault { UUID.randomUUID() }
+    val tokenHash = text("token_hash").uniqueIndex()
+    val googleSub = text("google_sub")
+    val email = text("email")
+    val name = text("name")
+    val accessTokenEnc = text("access_token_enc")
+    val refreshTokenEnc = text("refresh_token_enc")
+    val tokenExpiresAt = timestamp("token_expires_at")
+    val csrfToken = text("csrf_token")
+    val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val expiresAt = timestamp("expires_at")
+    override val primaryKey = PrimaryKey(id)
+}
+
 object OauthTokensTable : Table("oauth_tokens") {
     val parentId = uuid("parent_id").references(ParentsTable.id)
     val accessTokenEnc = text("access_token_enc")

@@ -54,17 +54,16 @@ export interface WhoAmI {
   isAdmin?: boolean;
 }
 
+export interface OnboardingStatus {
+  name: string;
+  email: string;
+  csrfToken: string;
+}
+
 export interface AdminStats {
   familyCount: number;
   userCount: number;
   helperCount: number;
-}
-
-export interface AdminInviteCode {
-  code: string;
-  createdAt: string;
-  usedAt: string | null;
-  usedByFamilyId: string | null;
 }
 
 export interface Profile {
@@ -75,6 +74,19 @@ export interface Profile {
 export const AVATARS = ["🐻", "🦊", "🐰", "🐼", "🐨", "🐯", "🦁", "🐵", "🐶", "🐱", "🐸", "🦄"];
 
 const API_BASE_URL = "";
+
+interface ApiErrorBody {
+  error?: string;
+}
+
+async function parseErrorMessage(response: Response, fallback: string): Promise<string> {
+  try {
+    const data = (await response.json()) as ApiErrorBody;
+    return data.error ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 async function handle<T>(response: Response): Promise<T> {
   if (response.status === 401) {
@@ -219,14 +231,38 @@ export const api = {
   getAdminStats: () =>
     fetch(`${API_BASE_URL}/api/admin/stats`, { credentials: "include" }).then((r) => handle<AdminStats>(r)),
 
-  getAdminInviteCodes: () =>
-    fetch(`${API_BASE_URL}/api/admin/invite-codes`, { credentials: "include" }).then((r) =>
-      handle<AdminInviteCode[]>(r),
-    ),
+  // Oppstartsvalg for en ny Google-bruker (/velkommen) — se OnboardingRoutes.kt på backend.
+  onboardingStatus: async (): Promise<{ ok: true; data: OnboardingStatus } | { ok: false; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/onboarding/status`, { credentials: "include" });
+    if (!response.ok) {
+      return { ok: false, message: await parseErrorMessage(response, "oppstartsøkten er utløpt, logg inn på nytt") };
+    }
+    return { ok: true, data: (await response.json()) as OnboardingStatus };
+  },
 
-  createAdminInviteCode: () =>
-    fetch(`${API_BASE_URL}/api/admin/invite-codes`, {
+  onboardingCreateFamily: async (csrfToken: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/onboarding/create-family`, {
       method: "POST",
       credentials: "include",
-    }).then((r) => handle<AdminInviteCode>(r)),
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ csrfToken }),
+    });
+    if (!response.ok) {
+      return { ok: false, message: await parseErrorMessage(response, "kunne ikke opprette familien, prøv igjen") };
+    }
+    return { ok: true };
+  },
+
+  onboardingJoinFamily: async (code: string, csrfToken: string): Promise<{ ok: true } | { ok: false; message: string }> => {
+    const response = await fetch(`${API_BASE_URL}/auth/onboarding/join-family`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code, csrfToken }),
+    });
+    if (!response.ok) {
+      return { ok: false, message: await parseErrorMessage(response, "ugyldig kode, prøv igjen") };
+    }
+    return { ok: true };
+  },
 };

@@ -34,6 +34,13 @@ data class ParentRecord(
 fun ParentRecord.effectiveAvailabilityCalendarId(): String? =
     if (availabilityDisabled) null else (availabilityCalendarId ?: calendarId)
 
+sealed class JoinFamilyResult {
+    data class Joined(val parent: ParentRecord) : JoinFamilyResult()
+    data class AlreadyMember(val parent: ParentRecord) : JoinFamilyResult()
+    object InvalidCode : JoinFamilyResult()
+    object FamilyFull : JoinFamilyResult()
+}
+
 class FamilyRepository(private val database: Database) {
 
     fun findParentByGoogleSub(googleSub: String): ParentRecord? = transaction(database) {
@@ -66,16 +73,14 @@ class FamilyRepository(private val database: Database) {
         ParentsTable.selectAll().where { ParentsTable.familyId eq familyId }.map { it.toParentRecord() }
     }
 
-    fun findFamilyWithRoom(): FamilyRecord? = transaction(database) {
-        FamiliesTable.selectAll()
-            .map { it.toFamilyRecord() }
-            .firstOrNull { family ->
-                ParentsTable.selectAll()
-                    .where { (ParentsTable.familyId eq family.id) and (ParentsTable.isHelper eq false) }
-                    .count() < 2
-            }
-    }
-
+    /**
+     * Oppretter en helt ny familie med den innloggede brukeren som forelder 1 — ingen kode
+     * kreves lenger (se OnboardingRoutes.kt). Idempotent: hvis Google-brukeren allerede har en
+     * forelder-rad (f.eks. et doble-innsendt skjema, eller en samtidig forespørsel som rakk å
+     * fullføre først), returneres den eksisterende raden i stedet for å opprette en duplikat —
+     * `google_sub` er unik, så en reell kappløping ville uansett feile med constraint-brudd;
+     * den feilen fanges og håndteres likt av kalleren (se handleGoogleSubRaceOrRethrow).
+     */
     fun createFamilyWithFirstParent(
         sharedCalendarId: String,
         inviteCode: String,
@@ -83,6 +88,10 @@ class FamilyRepository(private val database: Database) {
         email: String,
         name: String,
     ): ParentRecord = transaction(database) {
+        ParentsTable.selectAll().where { ParentsTable.googleSub eq googleSub }.firstOrNull()?.let {
+            return@transaction it.toParentRecord()
+        }
+
         val familyId = FamiliesTable.insert {
             it[FamiliesTable.sharedCalendarId] = sharedCalendarId
             it[FamiliesTable.inviteCode] = inviteCode
@@ -98,35 +107,30 @@ class FamilyRepository(private val database: Database) {
         ParentRecord(parentId, familyId, googleSub, email, name)
     }
 
-    fun addParentToFamily(familyId: UUID, googleSub: String, email: String, name: String): ParentRecord? = transaction(database) {
-        val existingParents = ParentsTable.selectAll()
-            .where { (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq false) }
-            .count()
-        if (existingParents >= 2) return@transaction null
-
-        val parentId = ParentsTable.insert {
-            it[ParentsTable.familyId] = familyId
-            it[ParentsTable.googleSub] = googleSub
-            it[ParentsTable.email] = email
-            it[ParentsTable.name] = name
-        }[ParentsTable.id]
-
-        ParentRecord(parentId, familyId, googleSub, email, name)
-    }
-
+    /**
+     * Forelder 2 blir med i en eksisterende familie via familiens invitasjonskode.
+     * `forUpdate()` låser familieraden for varigheten av transaksjonen: to samtidige forsøk på å
+     * bruke samme kode blir dermed serialisert — den andre ser koden som allerede konsumert
+     * (null) når den får låsen, i stedet for at begge kan passere tellingen av antall foreldre.
+     */
     fun joinFamilyWithInviteCode(
         inviteCode: String,
         googleSub: String,
         email: String,
         name: String,
-    ): ParentRecord? = transaction(database) {
+    ): JoinFamilyResult = transaction(database) {
+        ParentsTable.selectAll().where { ParentsTable.googleSub eq googleSub }.firstOrNull()?.let {
+            return@transaction JoinFamilyResult.AlreadyMember(it.toParentRecord())
+        }
+
         val family = FamiliesTable.selectAll().where { FamiliesTable.inviteCode eq inviteCode }
-            .firstOrNull()?.toFamilyRecord() ?: return@transaction null
+            .forUpdate()
+            .firstOrNull()?.toFamilyRecord() ?: return@transaction JoinFamilyResult.InvalidCode
 
         val existingParents = ParentsTable.selectAll()
             .where { (ParentsTable.familyId eq family.id) and (ParentsTable.isHelper eq false) }
             .count()
-        if (existingParents >= 2) return@transaction null
+        if (existingParents >= 2) return@transaction JoinFamilyResult.FamilyFull
 
         val parentId = ParentsTable.insert {
             it[ParentsTable.familyId] = family.id
@@ -139,7 +143,7 @@ class FamilyRepository(private val database: Database) {
             it[FamiliesTable.inviteCode] = null
         }
 
-        ParentRecord(parentId, family.id, googleSub, email, name)
+        JoinFamilyResult.Joined(ParentRecord(parentId, family.id, googleSub, email, name))
     }
 
     fun updateProfile(parentId: UUID, name: String, avatar: String?) = transaction(database) {

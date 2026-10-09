@@ -40,6 +40,7 @@ data class GoogleUserInfo(
     val sub: String,
     val email: String,
     val name: String? = null,
+    val email_verified: Boolean = false,
 )
 
 data class GoogleOAuthConfig(

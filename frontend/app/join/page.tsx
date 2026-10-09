@@ -6,17 +6,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-function NotRegisteredNotice() {
-  const params = useSearchParams();
-  if (params.get("error") !== "ikke_registrert") return null;
-  return (
-    <p role="alert" className="text-destructive">
-      Fant ingen familie knyttet til Google-kontoen din ennå. Skriv inn koden du har fått under for å
-      bli med i en familie.
-    </p>
-  );
-}
-
 function CodeFromQuery({ onCode }: { onCode: (code: string) => void }) {
   const params = useSearchParams();
   const codeParam = params.get("code");
@@ -42,15 +31,16 @@ export default function JoinPage() {
     <main className="flex flex-col gap-6">
       <h1>Bli med i en familie</h1>
       <Suspense fallback={null}>
-        <NotRegisteredNotice />
-      </Suspense>
-      <Suspense fallback={null}>
         <CodeFromQuery onCode={setCode} />
       </Suspense>
-      <p>Skriv inn koden du har fått for å opprette en ny familie, eller invitasjonskoden fra den andre forelderen.</p>
+      <p>
+        Skriv inn invitasjonskoden du har fått fra den andre forelderen for å bli med i familien
+        hens. Skal du opprette en helt ny familie i stedet? Du trenger ingen kode for det — logg
+        inn med Google fra forsiden.
+      </p>
       <form onSubmit={handleSubmit} className="flex flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="code">Kode</Label>
+          <Label htmlFor="code">Invitasjonskode</Label>
           <Input
             id="code"
             name="code"

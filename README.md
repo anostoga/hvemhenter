@@ -15,8 +15,11 @@ slektningar) som kan tildelast levering/henting utan å logge inn i appen sjølv
   fordeling + ledigheitssjekk). Sesjonsbasert autentisering (signert cookie)
   avgrensar alle `/api/*`-kall til familien til den innlogga brukaren.
 - **frontend/** — Next.js-dashbord. Innlogging skjer via Google (håndtert av
-  backend); nye familiar vert oppretta via ein invitasjons-/opprettingskode
-  på `/join`.
+  backend). Ein heilt ny brukar treng ingen kode — fyrste innlogging sender
+  deg til `/velkommen`, der du vel om du vil opprette ei ny familie (du blir
+  forelder 1) eller bli med i ei eksisterande familie via invitasjonskoden du
+  har fått frå den andre forelderen. Den andre forelderen brukar framleis
+  invitasjonskoden på `/join`.
 
 ## Kom i gang
 
@@ -57,11 +60,13 @@ kan stå tomme — dei blir uansett aldri brukte i mock-modus). Gå så til
 `http://localhost:8080/auth/mock-login` og fyll
 inn eit namn:
 
-- **Kode fylt ut** — opprettar ein ny familie (`FAMILY_CREATION_CODE`) eller blir
-  med i ein eksisterande familie via invitasjonskode, akkurat som `/join` gjer.
+- **Kode fylt ut** — hoppar over `/velkommen`-valet og blir med i ein
+  eksisterande familie via invitasjonskoden direkte (dev-snarveg for det
+  `/join` elles gjer).
 - **Kode tom** — loggar inn som ein allereie registrert mock-brukar (same
   namn/e-post → same forelder-rad vert gjenbrukt). Ukjend brukar blir sendt til
-  `/join?error=ikke_registrert`, akkurat som ekte `/auth/login` ville gjort.
+  `/velkommen` for å velje "opprett ny familie" eller "bli med med kode",
+  akkurat som ekte `/auth/login` ville gjort.
 
 Mock-innlogginga set ein ekte, gyldig sesjonscookie (same mekanisme som
 ekte Google-innlogging) og ein fiktiv OAuth-token-rad, slik at appen elles
@@ -82,7 +87,18 @@ oppfører seg identisk — bortsett frå at ekte Google Calendar-kall vil feile
 
 - OAuth-tokens er AES-256-GCM-krypterte i Postgres (`crypto/TokenCipher.kt`).
 - OAuth `state`-parameteren er HMAC-signert med utløpstid for å hindre CSRF
-  (`crypto/StateSigner.kt`).
+  (`crypto/StateSigner.kt`), og er i tillegg bunde til ein éingongs-nonce i ein
+  eigen cookie (`auth/OAuthNonce.kt`) slik at ein angripar ikkje kan lure eit
+  offer til å fullføre angriparen sin innlogging.
+- Fyrste-gongs-innlogging (ukjend Google-brukar) mellomlagrar identiteten i
+  ein kortlevd, databaselagra "onboarding-sesjon" (`db/OnboardingRepository.kt`,
+  tabellen `onboarding_sessions`) — aldri i minne, slik at det fungerer sjølv
+  med fleire backend-instansar. Val av "opprett familie"/"bli med" krev i
+  tillegg eit CSRF-token henta frå `/auth/onboarding/status` og ein gyldig
+  `Origin`-header (`routes/OnboardingRoutes.kt`).
+- Familieoppretting og -join er atomisk (Postgres row-locking på
+  invitasjonskoden) slik at to samtidige forsøk ikkje kan gje ein familie tre
+  foreldre eller opprette duplikate familiar (`db/FamilyRepository.kt`).
 - Sesjonscookien er HMAC-signert (ikkje kryptert — inneheld ingen PII, berre
   `parentId`/`familyId`) og kan difor ikkje forfalskast til å gje seg ut for
   å tilhøyra ein annan familie (`auth/SessionAuth.kt`).

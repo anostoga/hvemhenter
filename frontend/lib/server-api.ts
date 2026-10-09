@@ -1,5 +1,5 @@
 import { cookies } from "next/headers";
-import type { Assignment, AdminInviteCode, AdminStats, AvailableCalendar, Family, MyCalendar, Parent, Profile, WhoAmI } from "./api";
+import type { Assignment, AdminStats, AvailableCalendar, Family, MyCalendar, Parent, Profile, WhoAmI } from "./api";
 
 const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
 
@@ -51,7 +51,6 @@ async function serverFetch<T>(path: string): Promise<T> {
 }
 
 export const getServerAdminStats = () => serverFetch<AdminStats>("/api/admin/stats");
-export const getServerAdminInviteCodes = () => serverFetch<AdminInviteCode[]>("/api/admin/invite-codes");
 
 export const getServerParents = () => serverFetch<Parent[]>("/api/parents");
 export const getServerAssignments = () => serverFetch<Assignment[]>("/api/assignments");

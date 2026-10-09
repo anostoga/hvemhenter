@@ -16,9 +16,15 @@ import io.ktor.server.sessions.set
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.auth.SESSION_AUTH_NAME
 import no.pilot.barnehage.auth.UserSession
+import no.pilot.barnehage.auth.bindNonceToStatePayload
+import no.pilot.barnehage.auth.consumeOAuthNonce
+import no.pilot.barnehage.auth.issueOAuthNonce
+import no.pilot.barnehage.auth.unbindNonceFromStatePayload
 import no.pilot.barnehage.auth.userSession
 import no.pilot.barnehage.crypto.StateSigner
 import no.pilot.barnehage.db.FamilyRepository
+import no.pilot.barnehage.db.JoinFamilyResult
+import no.pilot.barnehage.db.OnboardingRepository
 import no.pilot.barnehage.db.TokenRepository
 import no.pilot.barnehage.google.GoogleOAuthClient
 import no.pilot.barnehage.Env
@@ -31,11 +37,19 @@ data class ErrorResponse(val error: String)
 private fun isConfiguredAdminEmail(email: String): Boolean =
     Env.get("ADMIN_EMAILS")?.split(",")?.map { it.trim().lowercase() }?.contains(email.lowercase()) == true
 
-private fun FamilyRepository.promoteToAdminIfConfigured(parent: no.pilot.barnehage.db.ParentRecord) {
-    if (!parent.isAdmin && parent.email != null && isConfiguredAdminEmail(parent.email)) {
+/**
+ * Gir admin-rettigheter basert på en statisk e-postliste i miljøvariabelen `ADMIN_EMAILS`.
+ * `emailVerified = false` (en ekte Google-konto der e-posten ikke er bekreftet) nekter dette —
+ * uten den sjekken kunne noen i teorien hevde en vilkårlig e-postadresse og få adminrettigheter.
+ * Mock-innlogging og reconnect har ingen `GoogleUserInfo` å sjekke mot og sender `true`.
+ */
+internal fun FamilyRepository.promoteToAdminIfConfigured(parent: no.pilot.barnehage.db.ParentRecord, emailVerified: Boolean = true) {
+    if (!parent.isAdmin && emailVerified && parent.email != null && isConfiguredAdminEmail(parent.email)) {
         setAdmin(parent.id, true)
     }
 }
+
+private fun secureCookiesEnabled(): Boolean = Env.get("SESSION_COOKIE_SECURE")?.toBooleanStrictOrNull() ?: true
 
 @Serializable
 data class WhoAmIResponse(val loggedIn: Boolean, val name: String? = null, val avatar: String? = null, val isAdmin: Boolean = false)
@@ -57,12 +71,43 @@ fun Route.registerWhoAmIAndLogout(familyRepository: FamilyRepository) {
     }
 }
 
+/**
+ * Oppretter en midlertidig oppstartsøkt for en Google-bruker vi ikke kjenner fra før, og sender
+ * videre til /velkommen der brukeren velger "opprett ny familie" eller "bli med med kode" (se
+ * OnboardingRoutes.kt). Brukes av både ekte Google-innlogging og mock-innlogging.
+ */
+private suspend fun ApplicationCall.startOnboarding(
+    onboardingRepository: OnboardingRepository,
+    frontendOnboardingUrl: String,
+    googleSub: String,
+    email: String,
+    name: String,
+    accessToken: String,
+    refreshToken: String,
+    expiresAt: LocalDateTime,
+) {
+    onboardingRepository.purgeExpired()
+    val handle = onboardingRepository.create(googleSub, email, name, accessToken, refreshToken, expiresAt)
+    response.cookies.append(
+        io.ktor.http.Cookie(
+            name = "bhg_onboarding",
+            value = handle.reference,
+            path = "/auth/onboarding",
+            maxAge = 600,
+            secure = secureCookiesEnabled(),
+            httpOnly = true,
+            extensions = mapOf("SameSite" to "Lax"),
+        ),
+    )
+    respondRedirect(frontendOnboardingUrl)
+}
+
 fun Route.registerMockGoogleLogin(
     familyRepository: FamilyRepository,
     tokenRepository: TokenRepository,
+    onboardingRepository: OnboardingRepository,
     frontendSuccessUrl: String,
-    frontendJoinUrl: String,
-    adminRepository: no.pilot.barnehage.db.AdminRepository? = null,
+    frontendOnboardingUrl: String,
 ) {
     get("/auth/mock-login") {
         val name = call.parameters["name"]
@@ -75,12 +120,34 @@ fun Route.registerMockGoogleLogin(
         val code = call.parameters["code"]?.takeIf { it.isNotBlank() }
         val mockGoogleSub = "mock:$email"
 
-        val familyId = if (code != null) {
-            handleJoin(code, mockGoogleSub, email, name, familyRepository, adminRepository)
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
-        } else {
-            familyRepository.findParentByGoogleSub(mockGoogleSub)?.familyId?.toString()
-                ?: return@get call.respondRedirect("$frontendJoinUrl?error=ikke_registrert")
+        val existing = familyRepository.findParentByGoogleSub(mockGoogleSub)
+        if (existing == null && code == null) {
+            // Ukjent mock-bruker uten kode: gå gjennom samme oppstartsvalg som ekte Google-innlogging.
+            call.startOnboarding(
+                onboardingRepository,
+                frontendOnboardingUrl,
+                mockGoogleSub,
+                email,
+                name,
+                accessToken = "mock-access-token",
+                refreshToken = "mock-refresh-token",
+                expiresAt = LocalDateTime.now().plusDays(365),
+            )
+            return@get
+        }
+
+        val familyId = when {
+            existing != null -> existing.familyId.toString()
+            code != null -> {
+                // Dev-snarvei: bli med direkte med en invitasjonskode uten å gå via /velkommen.
+                when (val result = familyRepository.joinFamilyWithInviteCode(code, mockGoogleSub, email, name)) {
+                    is JoinFamilyResult.Joined -> result.parent.familyId.toString()
+                    is JoinFamilyResult.AlreadyMember -> result.parent.familyId.toString()
+                    JoinFamilyResult.InvalidCode, JoinFamilyResult.FamilyFull ->
+                        return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
+                }
+            }
+            else -> return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet tilstand"))
         }
 
         val parent = familyRepository.findParentByGoogleSub(mockGoogleSub)
@@ -104,12 +171,14 @@ private fun mockLoginFormHtml(): String = """
     <html lang="no">
     <body style="font-family: system-ui; max-width: 480px; margin: 2rem auto;">
       <h1>Mock Google-innlogging (kun lokal dev)</h1>
-      <p>Fyll inn en kode KUN hvis du oppretter en ny familie eller blir med i en via
-         invitasjonskode — la den stå tom for å logge inn som en allerede registrert testbruker.</p>
+      <p>La koden stå tom for å oppleve den vanlige flyten: ukjent bruker sendes til
+         /velkommen for å velge "opprett ny familie" eller "bli med med kode". Fyll inn en
+         invitasjonskode her KUN som en snarvei forbi /velkommen under utvikling.
+         Allerede registrerte mock-brukere (samme navn/e-post) logges rett inn uansett.</p>
       <form method="get" action="/auth/mock-login">
         <label>Navn <input name="name" required></label><br>
         <label>E-post (valgfri) <input name="email"></label><br>
-        <label>Kode (valgfri) <input name="code"></label><br>
+        <label>Invitasjonskode (valgfri, kun dev-snarvei) <input name="code"></label><br>
         <button type="submit">Logg inn</button>
       </form>
     </body>
@@ -120,26 +189,28 @@ fun Route.authRoutes(
     oauthClient: GoogleOAuthClient,
     stateSigner: StateSigner,
     tokenRepository: TokenRepository,
+    onboardingRepository: OnboardingRepository,
     frontendSuccessUrl: String,
-    frontendJoinUrl: String,
+    frontendOnboardingUrl: String,
     familyRepository: FamilyRepository,
-    adminRepository: no.pilot.barnehage.db.AdminRepository? = null,
 ) {
     registerWhoAmIAndLogout(familyRepository)
 
     get("/auth/login") {
-        val state = stateSigner.sign("login")
+        val nonce = call.issueOAuthNonce(secureCookiesEnabled())
+        val state = stateSigner.sign(bindNonceToStatePayload(nonce, "login"))
         call.respondRedirect(oauthClient.buildAuthorizeUrl(state))
     }
 
     if (Env.get("MOCK_GOOGLE_AUTH")?.toBooleanStrictOrNull() == true) {
-        registerMockGoogleLogin(familyRepository, tokenRepository, frontendSuccessUrl, frontendJoinUrl, adminRepository)
+        registerMockGoogleLogin(familyRepository, tokenRepository, onboardingRepository, frontendSuccessUrl, frontendOnboardingUrl)
     }
 
     authenticate(SESSION_AUTH_NAME) {
         get("/auth/google/start") {
             val session = call.userSession()!!
-            val state = stateSigner.sign("reconnect:${session.parentId}")
+            val nonce = call.issueOAuthNonce(secureCookiesEnabled())
+            val state = stateSigner.sign(bindNonceToStatePayload(nonce, "reconnect:${session.parentId}"))
             call.respondRedirect(oauthClient.buildAuthorizeUrl(state))
         }
     }
@@ -150,8 +221,15 @@ fun Route.authRoutes(
         val state = call.parameters["state"]
             ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("state mangler"))
 
-        val statePayload = stateSigner.verify(state)
+        val signedPayload = stateSigner.verify(state)
             ?: return@get call.respond(HttpStatusCode.Unauthorized, ErrorResponse("ugyldig eller utløpt state"))
+
+        val cookieNonce = call.consumeOAuthNonce(secureCookiesEnabled())
+        val statePayload = unbindNonceFromStatePayload(signedPayload, cookieNonce)
+            ?: return@get call.respond(
+                HttpStatusCode.Unauthorized,
+                ErrorResponse("innloggingen ble ikke startet i denne nettleseren — prøv på nytt"),
+            )
 
         val tokenResponse = oauthClient.exchangeCode(code)
         val refreshToken = tokenResponse.refresh_token
@@ -159,25 +237,32 @@ fun Route.authRoutes(
                 HttpStatusCode.BadGateway,
                 ErrorResponse("Google returnerte ikke refresh_token — prøv å koble til på nytt (krever prompt=consent)"),
             )
+        val expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.expires_in.toLong())
 
         if (statePayload.startsWith("join:")) {
             val joinCode = statePayload.removePrefix("join:")
             val userInfo = oauthClient.fetchUserInfo(tokenResponse.access_token)
-            val familyId = handleJoin(joinCode, userInfo.sub, userInfo.email, userInfo.name ?: userInfo.email, familyRepository, adminRepository)
-                ?: return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig kode eller familien er full"))
 
-            val parent = familyRepository.findParentByGoogleSub(userInfo.sub)
-                ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet feil ved opprettelse"))
-            familyRepository.promoteToAdminIfConfigured(parent)
+            val result = runCatching {
+                familyRepository.joinFamilyWithInviteCode(joinCode, userInfo.sub, userInfo.email, userInfo.name ?: userInfo.email)
+            }.getOrElse {
+                // google_sub finnes allerede (reell samtidighet med en annen fullføring) — logg inn på den i stedet.
+                familyRepository.findParentByGoogleSub(userInfo.sub)?.let { JoinFamilyResult.AlreadyMember(it) }
+                    ?: return@get call.respond(HttpStatusCode.InternalServerError, ErrorResponse("uventet feil ved innmelding"))
+            }
 
-            tokenRepository.upsert(
-                parentId = parent.id,
-                accessToken = tokenResponse.access_token,
-                refreshToken = refreshToken,
-                expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.expires_in.toLong()),
-            )
+            val parent = when (result) {
+                is JoinFamilyResult.Joined -> result.parent
+                is JoinFamilyResult.AlreadyMember -> result.parent
+                JoinFamilyResult.InvalidCode ->
+                    return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig eller allerede brukt kode"))
+                JoinFamilyResult.FamilyFull ->
+                    return@get call.respond(HttpStatusCode.BadRequest, ErrorResponse("familien har allerede to foreldre"))
+            }
+            familyRepository.promoteToAdminIfConfigured(parent, userInfo.email_verified)
 
-            call.sessions.set(UserSession(parentId = parent.id.toString(), familyId = familyId))
+            tokenRepository.upsert(parent.id, tokenResponse.access_token, refreshToken, expiresAt)
+            call.sessions.set(UserSession(parentId = parent.id.toString(), familyId = parent.familyId.toString()))
             call.respondRedirect(frontendSuccessUrl)
             return@get
         }
@@ -186,16 +271,22 @@ fun Route.authRoutes(
             val userInfo = oauthClient.fetchUserInfo(tokenResponse.access_token)
             val parent = familyRepository.findParentByGoogleSub(userInfo.sub)
 
-                ?: return@get call.respondRedirect("$frontendJoinUrl?error=ikke_registrert")
-            familyRepository.promoteToAdminIfConfigured(parent)
+            if (parent == null) {
+                call.startOnboarding(
+                    onboardingRepository,
+                    frontendOnboardingUrl,
+                    userInfo.sub,
+                    userInfo.email,
+                    userInfo.name ?: userInfo.email,
+                    tokenResponse.access_token,
+                    refreshToken,
+                    expiresAt,
+                )
+                return@get
+            }
+            familyRepository.promoteToAdminIfConfigured(parent, userInfo.email_verified)
 
-            tokenRepository.upsert(
-                parentId = parent.id,
-                accessToken = tokenResponse.access_token,
-                refreshToken = refreshToken,
-                expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.expires_in.toLong()),
-            )
-
+            tokenRepository.upsert(parent.id, tokenResponse.access_token, refreshToken, expiresAt)
             call.sessions.set(UserSession(parentId = parent.id.toString(), familyId = parent.familyId.toString()))
             call.respondRedirect(frontendSuccessUrl)
             return@get
@@ -203,12 +294,7 @@ fun Route.authRoutes(
 
         if (statePayload.startsWith("reconnect:")) {
             val parentId = UUID.fromString(statePayload.removePrefix("reconnect:"))
-            tokenRepository.upsert(
-                parentId = parentId,
-                accessToken = tokenResponse.access_token,
-                refreshToken = refreshToken,
-                expiresAt = LocalDateTime.now().plusSeconds(tokenResponse.expires_in.toLong()),
-            )
+            tokenRepository.upsert(parentId, tokenResponse.access_token, refreshToken, expiresAt)
             call.respondRedirect(frontendSuccessUrl)
             return@get
         }

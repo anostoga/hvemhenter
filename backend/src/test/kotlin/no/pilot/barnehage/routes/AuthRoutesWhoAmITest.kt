@@ -75,10 +75,9 @@ class AuthRoutesWhoAmITest {
 
     @Test
     fun `whoami med gyldig sesjon returnerer navnet til den innloggede brukeren`() = testApplication {
-        Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
         val googleSub = sub()
-        val familyId = handleJoin("riktig-kode", googleSub, "a@example.com", "Kari Nordmann", repository)!!
-        val parent = repository.findParentByGoogleSub(googleSub)!!
+        val parent = repository.createFamilyWithFirstParent("", "invite-${googleSub}", googleSub, "a@example.com", "Kari Nordmann")
+        val familyId = parent.familyId.toString()
 
         application {
             Env.overrideForTests("SESSION_SIGNING_SECRET", "test-secret-abc")
@@ -106,10 +105,9 @@ class AuthRoutesWhoAmITest {
 
     @Test
     fun `logout fjerner sesjonen slik at whoami deretter svarer loggedIn false`() = testApplication {
-        Env.overrideForTests("FAMILY_CREATION_CODE", "riktig-kode")
         val googleSub = sub()
-        val familyId = handleJoin("riktig-kode", googleSub, "b@example.com", "Ola Nordmann", repository)!!
-        val parent = repository.findParentByGoogleSub(googleSub)!!
+        val parent = repository.createFamilyWithFirstParent("", "invite-${googleSub}", googleSub, "b@example.com", "Ola Nordmann")
+        val familyId = parent.familyId.toString()
 
         application {
             Env.overrideForTests("SESSION_SIGNING_SECRET", "test-secret-abc")

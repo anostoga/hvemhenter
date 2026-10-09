@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { redirect } from "next/navigation";
-import { getServerAdminInviteCodes, getServerAdminStats, ForbiddenError, UnauthorizedError } from "@/lib/server-api";
-import type { AdminInviteCode, AdminStats } from "@/lib/api";
+import { getServerAdminStats, ForbiddenError, UnauthorizedError } from "@/lib/server-api";
+import type { AdminStats } from "@/lib/api";
 import AdminClient from "./AdminClient";
 
 export const metadata = {
@@ -10,16 +10,15 @@ export const metadata = {
 
 async function AdminData() {
   let stats: AdminStats;
-  let inviteCodes: AdminInviteCode[];
   try {
-    [stats, inviteCodes] = await Promise.all([getServerAdminStats(), getServerAdminInviteCodes()]);
+    stats = await getServerAdminStats();
   } catch (e) {
     if (e instanceof UnauthorizedError || e instanceof ForbiddenError) {
       redirect("/");
     }
     throw e;
   }
-  return <AdminClient initialStats={stats} initialInviteCodes={inviteCodes} />;
+  return <AdminClient initialStats={stats} />;
 }
 
 export default function AdminPage() {

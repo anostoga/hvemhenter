@@ -76,11 +76,13 @@ export default async function LandingPage() {
         <section>
           <h2>Kom i gang</h2>
           <p>
-            Allerede registrert i en familie? <a href={api.loginUrl()}>Logg inn med Google</a>
+            <a href={api.loginUrl()}>Logg inn med Google</a> for å komme i gang. Er du den andre
+            forelderen i en familie som allerede finnes, logg inn på samme måte og skriv inn
+            invitasjonskoden du har fått — er du helt ny, kan du opprette familien din med én gang.
           </p>
           <p>
-            Har du en invitasjonskode, eller vil du opprette en ny familie?{" "}
-            <Link href="/join">Bli med i en familie</Link>
+            Har du fått en lenke med invitasjonskode fra den andre forelderen?{" "}
+            <Link href="/join">Bli med med kode</Link>
           </p>
         </section>
       )}
