@@ -58,6 +58,8 @@ export function WeekCalendar({
 
   function renderSlot(date: string, type: AssignmentType) {
     const assignment = assignmentsByDay.get(date)?.[type];
+    const assignedParent = parents.find((parent) => parent.id === assignment?.parentId);
+    const canSendHelperEmail = Boolean(assignedParent?.isHelper && assignedParent.email?.trim());
     const past = isPast(date);
 
     return (
@@ -85,22 +87,27 @@ export function WeekCalendar({
         {}
         <p className="m-0 min-h-[1em] text-xs text-muted-foreground">
           {assignment
-            ? assignment.confirmationStatus === "PENDING"
-              ? "Venter på svar"
-              : assignment.confirmationStatus === "ACCEPTED"
-                ? "Godtatt"
-                : assignment.confirmationStatus === "DECLINED"
-                  ? "Avslått"
-                  : assignment.source === "AUTO"
-                    ? "auto"
-                    : "manuelt"
+            ? assignment.confirmationStatus !== "NOT_REQUIRED"
+              ? canSendHelperEmail
+                ? assignment.confirmationStatus === "PENDING"
+                  ? assignment.confirmationEmailSent
+                    ? "Venter på svar"
+                    : "Ikke sendt"
+                  : assignment.confirmationStatus === "ACCEPTED"
+                    ? "Godtatt"
+                    : "Avslått"
+                : "\u00A0"
+              : assignment.source === "AUTO"
+                ? "auto"
+                : "manuelt"
             : "\u00A0"}
         </p>
-        {assignment?.confirmationStatus === "PENDING" && assignment.id && (
+        {canSendHelperEmail && assignment?.confirmationStatus === "PENDING" && !assignment.confirmationEmailSent && assignment.id && (
           <Button
             type="button"
-            variant="ghost"
-            size="sm"
+            variant="default"
+            size="default"
+            className="self-start"
             disabled={loading || resendingAssignmentId === assignment.id}
             onClick={() => onResendConfirmation(assignment.id!)}
           >

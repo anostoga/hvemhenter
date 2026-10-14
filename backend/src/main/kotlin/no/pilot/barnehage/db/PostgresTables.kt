@@ -82,6 +82,7 @@ object AssignmentsTable : Table("assignments") {
     val assignmentSource = text("source")
     val googleEventId = text("google_event_id").nullable()
     val confirmationStatus = text("confirmation_status").default("NOT_REQUIRED")
+    val confirmationEmailSent = bool("confirmation_email_sent").default(false)
     val confirmationTokenHash = text("confirmation_token_hash").nullable()
     val confirmationTokenExpiresAt = timestamp("confirmation_token_expires_at").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)

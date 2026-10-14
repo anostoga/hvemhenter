@@ -91,6 +91,9 @@ fun Route.assignmentConfirmationRoutes(
             if (assignment.confirmationStatus != ConfirmationStatus.PENDING) {
                 return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen venter ikke på svar"))
             }
+            if (assignment.confirmationEmailSent) {
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("bekreftelses-e-posten er allerede sendt"))
+            }
             val helper = familyRepository.findParent(assignment.parentId)
                 ?.takeIf { it.familyId == familyId && it.isHelper }
                 ?: return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen gjelder ikke en hjelper"))
@@ -114,8 +117,13 @@ fun Route.assignmentConfirmationRoutes(
                     token = token.value,
                 )
             } catch (e: HelperNotificationException) {
+                assignmentRepo.clearConfirmationToken(assignmentId, token.hash)
                 logger.error("Kunne ikke sende bekreftelsesforespørsel for tildeling $assignmentId", e)
                 return@post call.respond(HttpStatusCode.BadGateway, ErrorResponse("kunne ikke sende e-post, prøv igjen"))
+            }
+            if (!assignmentRepo.markConfirmationEmailSent(assignmentId, token.hash)) {
+                logger.error("E-post sendt, men kunne ikke merke bekreftelse som sendt for tildeling $assignmentId")
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("e-posten ble sendt, men tildelingen ble endret"))
             }
             call.respond(HttpStatusCode.Accepted)
         }

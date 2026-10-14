@@ -146,7 +146,7 @@ class FamilyScopedAssignmentRepositoryTest {
 
         val saved = repo.findById(id)
 
-        assertEquals(ConfirmationStatus.PENDING, saved?.confirmationStatus)
+        assertEquals(false, saved?.confirmationEmailSent)
     }
 
     @Test
@@ -191,6 +191,9 @@ class FamilyScopedAssignmentRepositoryTest {
         assertEquals(ConfirmationStatus.PENDING, repo.findById(id)?.confirmationStatus)
         val newHash = "c".repeat(64)
         assertTrue(repo.updateConfirmationToken(id, newHash, Instant.now().plusSeconds(3600)))
+        assertEquals(false, repo.findById(id)?.confirmationEmailSent)
+        assertTrue(repo.markConfirmationEmailSent(id, newHash))
+        assertEquals(true, repo.findById(id)?.confirmationEmailSent)
         val confirmationRepository = AssignmentConfirmationRepository(database)
         assertEquals(ConfirmationStatus.PENDING, confirmationRepository.find(newHash)?.status)
         assertEquals(ConfirmationAnswerResult.UPDATED, confirmationRepository.answer(newHash, ConfirmationStatus.ACCEPTED))

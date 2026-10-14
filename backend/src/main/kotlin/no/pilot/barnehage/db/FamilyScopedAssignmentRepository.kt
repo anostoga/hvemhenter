@@ -20,6 +20,7 @@ data class FamilyAssignment(
     val source: String,
     val googleEventId: String?,
     val confirmationStatus: ConfirmationStatus,
+    val confirmationEmailSent: Boolean,
 )
 
 data class AssignmentConfirmation(
@@ -106,7 +107,30 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         }) {
             it[AssignmentsTable.confirmationTokenHash] = tokenHash
             it[AssignmentsTable.confirmationTokenExpiresAt] = expiresAt
+            it[AssignmentsTable.confirmationEmailSent] = false
         } > 0
+    }
+
+    fun markConfirmationEmailSent(id: UUID, tokenHash: String): Boolean = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationTokenHash eq tokenHash)
+        }) {
+            it[AssignmentsTable.confirmationEmailSent] = true
+        } > 0
+    }
+
+    fun clearConfirmationToken(id: UUID, tokenHash: String) = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationTokenHash eq tokenHash)
+        }) {
+            it[AssignmentsTable.confirmationTokenHash] = null
+            it[AssignmentsTable.confirmationTokenExpiresAt] = null
+            it[AssignmentsTable.confirmationEmailSent] = false
+        }
     }
 
     fun findById(id: UUID): FamilyAssignment? = transaction(database) {
@@ -148,5 +172,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         source = this[AssignmentsTable.assignmentSource],
         googleEventId = this[AssignmentsTable.googleEventId],
         confirmationStatus = ConfirmationStatus.valueOf(this[AssignmentsTable.confirmationStatus]),
+        confirmationEmailSent = this[AssignmentsTable.confirmationEmailSent],
     )
 }

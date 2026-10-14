@@ -43,6 +43,7 @@ data class Assignment(
     val source: AssignmentSource,
     val googleEventId: String? = null,
     val confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
+    val confirmationEmailSent: Boolean = false,
 )
 
 data class BusyPeriod(val startEpochMillis: Long, val endEpochMillis: Long)

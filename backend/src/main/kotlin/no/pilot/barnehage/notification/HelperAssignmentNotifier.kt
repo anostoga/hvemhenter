@@ -10,6 +10,8 @@ import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.Env
 import kotlinx.coroutines.CancellationException
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 
 interface HelperAssignmentNotifier {
     val isConfigured: Boolean
@@ -52,6 +54,7 @@ class ResendHelperAssignmentNotifier(
             ?: throw HelperNotificationException("FRONTEND_URL mangler eller er ugyldig")
 
         val responseUrl = "${frontendUrl.trimEnd('/')}/bekreft/$token"
+        val subjectDate = LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
         try {
             val response = httpClient.post("https://api.resend.com/emails") {
                 header("Authorization", "Bearer $apiKey")
@@ -60,7 +63,7 @@ class ResendHelperAssignmentNotifier(
                     ResendEmailRequest(
                         from = fromAddress,
                         to = listOf(email),
-                        subject = "$assignmentType $date – bekreft oppgaven",
+                        subject = "$assignmentType $subjectDate – bekreft oppgaven",
                         html = emailHtml(helperName, assignmentType, date, responseUrl),
                         text = "Hei $helperName! Du er satt opp på $assignmentType $date. " +
                             "Svar her: $responseUrl",

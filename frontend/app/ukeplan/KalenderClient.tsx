@@ -174,6 +174,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
     setResendingAssignmentId(assignmentId);
     try {
       await api.resendAssignmentConfirmation(assignmentId);
+      await refreshAssignments();
       setNotice("Bekreftelses-e-post sendt.");
     } catch (e) {
       setError(String(e));

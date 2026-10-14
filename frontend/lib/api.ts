@@ -22,6 +22,7 @@ export interface Assignment {
   source: AssignmentSource;
   googleEventId: string | null;
   confirmationStatus: ConfirmationStatus;
+  confirmationEmailSent: boolean;
 }
 
 export interface AssignmentConfirmation {

@@ -171,6 +171,7 @@ fun Route.assignmentRoutes(
                     source = request.source,
                     googleEventId = googleEventId,
                     confirmationStatus = confirmationStatus,
+                    confirmationEmailSent = false,
                 ),
             )
         }
@@ -213,6 +214,7 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
     source = AssignmentSource.valueOf(source),
     googleEventId = googleEventId,
     confirmationStatus = confirmationStatus,
+    confirmationEmailSent = confirmationEmailSent,
 )
 
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
