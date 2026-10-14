@@ -34,8 +34,10 @@ export default function PersonvernPage() {
           </li>
         </ul>
         <p>
-          Familien kan i tillegg registrere &quot;hjelpere&quot; (f.eks. besteforeldre) med kun navn og valgfri
-          avatar — hjelpere har ingen Google-konto, e-postadresse eller kalendertilgang knyttet til seg i appen.
+          Familien kan i tillegg registrere &quot;hjelpere&quot; (f.eks. besteforeldre) med navn, valgfri avatar
+          og valgfri e-postadresse. E-postadressen kan brukes til å sende beskjed om tildelt levering/henting og en
+          lenke der hjelperen kan godta eller avslå oppgaven. Hjelpere har ikke Google-konto eller
+          kalendertilgang knyttet til seg i appen.
         </p>
       </section>
 
@@ -44,8 +46,9 @@ export default function PersonvernPage() {
         <p>
           Opplysningene brukes utelukkende til å drifte appens kjernefunksjon: vise hvem som henter/leverer når,
           foreslå en rettferdig fordeling basert på historikk og ledig tid, og synkronisere dette med familiens
-          delte Google-kalender. Behandlingen er basert på samtykke — du logger aktivt inn med Google og gir
-          derved appen tilgang til de kalender-scopene som er nødvendige for dette.
+          delte Google-kalender. Hjelperens e-post brukes kun til oppgavevarsler og svarlenker. Behandlingen er
+          basert på samtykke — du logger aktivt inn med Google og gir derved appen tilgang til de kalender-scopene
+          som er nødvendige for dette.
         </p>
       </section>
 
@@ -72,6 +75,10 @@ export default function PersonvernPage() {
           </li>
           <li>
             <strong>Supabase</strong> — hoster PostgreSQL-databasen der opplysningene lagres.
+          </li>
+          <li>
+            <strong>Resend</strong> — sender e-postvarsler med oppgaveinformasjon og svarlenke til hjelpere som
+            familien har registrert.
           </li>
           <li>
             <strong>Fly.io</strong> — hoster backend-tjenesten (API-et).

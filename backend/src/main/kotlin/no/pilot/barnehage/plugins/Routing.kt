@@ -19,6 +19,7 @@ import no.pilot.barnehage.google.CalendarService
 import no.pilot.barnehage.google.GoogleOAuthClient
 import no.pilot.barnehage.google.GoogleOAuthConfig
 import no.pilot.barnehage.routes.assignmentRoutes
+import no.pilot.barnehage.routes.assignmentConfirmationRoutes
 import no.pilot.barnehage.routes.accountRoutes
 import no.pilot.barnehage.routes.adminRoutes
 import no.pilot.barnehage.routes.authRoutes
@@ -27,6 +28,7 @@ import no.pilot.barnehage.routes.familyRoutes
 import no.pilot.barnehage.routes.joinRoutes
 import no.pilot.barnehage.routes.onboardingRoutes
 import no.pilot.barnehage.routes.profileRoutes
+import no.pilot.barnehage.notification.ResendHelperAssignmentNotifier
 import org.jetbrains.exposed.sql.Database
 import org.jetbrains.exposed.sql.transactions.transaction
 
@@ -47,6 +49,7 @@ fun Application.configureRouting(database: Database) {
     val familyRepository = FamilyRepository(database)
     val adminRepository = AdminRepository(database)
     val onboardingRepository = OnboardingRepository(tokenCipher, database)
+    val helperAssignmentNotifier = ResendHelperAssignmentNotifier.fromEnvironment(httpClient)
     val frontendSuccessUrl = Env.get("FRONTEND_URL") ?: "/"
     val frontendOnboardingUrl = Env.get("FRONTEND_URL")?.let { "$it/velkommen" } ?: "/velkommen"
 
@@ -71,6 +74,7 @@ fun Application.configureRouting(database: Database) {
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)
+        assignmentConfirmationRoutes(familyRepository, database, helperAssignmentNotifier)
         accountRoutes(familyRepository, tokenRepository, oauthClient, calendarService, accessTokenProvider, database)
         adminRoutes(familyRepository, adminRepository)
     }

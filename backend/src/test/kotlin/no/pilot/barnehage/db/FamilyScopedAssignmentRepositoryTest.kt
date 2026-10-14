@@ -7,12 +7,15 @@ import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.or
 import org.jetbrains.exposed.sql.transactions.transaction
 import java.time.LocalDate
+import java.time.Instant
 import java.util.UUID
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import no.pilot.barnehage.domain.ConfirmationStatus
 
 class FamilyScopedAssignmentRepositoryTest {
     private val database = Database.connect(
@@ -123,5 +126,75 @@ class FamilyScopedAssignmentRepositoryTest {
             repoA.hasAssignmentsForParent(parentB),
             "parentB har ingen tildeling i familie A (og tilhører uansett familie B)",
         )
+    }
+
+    @Test
+    fun `tildeling lagrer ventende bekreftelse og tokenhash`() {
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val tokenHash = "a".repeat(64)
+        val expiresAt = Instant.now().plusSeconds(3600)
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 1),
+            type = "PICKUP",
+            parentId = parentA,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+            confirmationTokenHash = tokenHash,
+            confirmationTokenExpiresAt = expiresAt,
+        )
+
+        val saved = repo.findById(id)
+
+        assertEquals(ConfirmationStatus.PENDING, saved?.confirmationStatus)
+    }
+
+    @Test
+    fun `helper kan tildeles uten e-posttoken`() {
+        val helper = FamilyRepository(database).addHelper(familyA, "Bestemor", null)
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 3),
+            type = "PICKUP",
+            parentId = helper.id,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+        )
+
+        val saved = repo.findById(id)
+        assertEquals(ConfirmationStatus.PENDING, saved?.confirmationStatus)
+        assertNull(AssignmentConfirmationRepository(database).find("d".repeat(64)))
+    }
+
+    @Test
+    fun `endring av helper-e-post ugyldiggjør gammel lenke og lar familien sende ny`() {
+        val familyRepository = FamilyRepository(database)
+        val helper = familyRepository.addHelper(familyA, "Bestemor", null, "old@example.com")
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val oldHash = "b".repeat(64)
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 2),
+            type = "DROPOFF",
+            parentId = helper.id,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+            confirmationTokenHash = oldHash,
+            confirmationTokenExpiresAt = Instant.now().plusSeconds(3600),
+        )
+
+        familyRepository.updateHelper(familyA, helper.id, "Bestemor", null, "new@example.com")
+
+        assertNull(AssignmentConfirmationRepository(database).find(oldHash))
+        assertEquals(ConfirmationStatus.PENDING, repo.findById(id)?.confirmationStatus)
+        val newHash = "c".repeat(64)
+        assertTrue(repo.updateConfirmationToken(id, newHash, Instant.now().plusSeconds(3600)))
+        val confirmationRepository = AssignmentConfirmationRepository(database)
+        assertEquals(ConfirmationStatus.PENDING, confirmationRepository.find(newHash)?.status)
+        assertEquals(ConfirmationAnswerResult.UPDATED, confirmationRepository.answer(newHash, ConfirmationStatus.ACCEPTED))
+        assertEquals(ConfirmationAnswerResult.ALREADY_RECORDED, confirmationRepository.answer(newHash, ConfirmationStatus.ACCEPTED))
+        assertEquals(ConfirmationAnswerResult.CONFLICT, confirmationRepository.answer(newHash, ConfirmationStatus.DECLINED))
     }
 }

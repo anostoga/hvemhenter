@@ -9,11 +9,15 @@ enum class AssignmentType { DROPOFF, PICKUP }
 enum class AssignmentSource { AUTO, MANUAL }
 
 @Serializable
+enum class ConfirmationStatus { NOT_REQUIRED, PENDING, ACCEPTED, DECLINED }
+
+@Serializable
 data class Parent(
     val id: String,
     val name: String,
 
     val avatar: String? = null,
+    val email: String? = null,
 
     val connected: Boolean = false,
 
@@ -38,6 +42,7 @@ data class Assignment(
     val parentId: String,
     val source: AssignmentSource,
     val googleEventId: String? = null,
+    val confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
 )
 
 data class BusyPeriod(val startEpochMillis: Long, val endEpochMillis: Long)

@@ -50,7 +50,9 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
   const parents = initialParents;
   const [assignments, setAssignments] = useState<Assignment[]>(initialAssignments);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [resendingAssignmentId, setResendingAssignmentId] = useState<string | null>(null);
 
   const [loadingWeekIndex, setLoadingWeekIndex] = useState<number | null>(null);
 
@@ -67,6 +69,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
     }
     return map;
   }, [assignments]);
+  const declinedAssignments = assignments.filter((assignment) => assignment.confirmationStatus === "DECLINED");
 
   async function refreshAssignments(): Promise<void> {
     try {
@@ -82,6 +85,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
 
   async function generateWeekPlan(weekDays: string[]) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     setLoadingWeekIndex(weekIndexOf(weekDays));
     const today = toIsoDate(new Date());
@@ -105,6 +109,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
 
   async function resetWeekPlan(weekDays: string[]) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     setLoadingWeekIndex(weekIndexOf(weekDays));
     const today = toIsoDate(new Date());
@@ -142,6 +147,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
 
   async function changeAssignment(date: string, type: AssignmentType, parentId: string) {
     setError(null);
+    setNotice(null);
     setLoading(true);
     try {
       if (!parentId) {
@@ -155,25 +161,57 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
       }
       await refreshAssignments();
     } catch (e) {
+      await refreshAssignments();
       setError(String(e));
     } finally {
       setLoading(false);
     }
   }
 
+  async function resendConfirmation(assignmentId: string) {
+    setError(null);
+    setNotice(null);
+    setResendingAssignmentId(assignmentId);
+    try {
+      await api.resendAssignmentConfirmation(assignmentId);
+      setNotice("Bekreftelses-e-post sendt.");
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setResendingAssignmentId(null);
+    }
+  }
+
   return (
     <>
       {error && <p className="text-destructive">{error}</p>}
+      {notice && <p className="text-sm text-muted-foreground" role="status">{notice}</p>}
+      {declinedAssignments.length > 0 && (
+        <aside className="mb-4 rounded-md border border-destructive p-3" role="status">
+          <p className="m-0 font-semibold">En hjelper har avslått en oppgave.</p>
+          <p className="m-0">Velg en ny ansvarlig i kalenderen for å sende en ny forespørsel.</p>
+          <ul className="mb-0 mt-2 list-disc pl-5">
+            {declinedAssignments.map((assignment) => (
+              <li key={`${assignment.date}-${assignment.type}`}>
+                {assignment.date} — {assignment.type === "DROPOFF" ? "levering" : "henting"} (
+                {parents.find((parent) => parent.id === assignment.parentId)?.name ?? "hjelper"})
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
 
       <WeekCalendar
         days={days}
         assignmentsByDay={assignmentsByDay}
         parents={parents}
-        loading={loading}
+        loading={loading || resendingAssignmentId !== null}
         loadingWeekIndex={loadingWeekIndex}
         onGenerateWeekPlan={generateWeekPlan}
         onResetWeekPlan={requestResetWeek}
         onChangeAssignment={changeAssignment}
+        onResendConfirmation={resendConfirmation}
+        resendingAssignmentId={resendingAssignmentId}
       />
 
       <Dialog

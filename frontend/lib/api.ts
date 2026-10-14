@@ -1,10 +1,12 @@
 export type AssignmentType = "DROPOFF" | "PICKUP";
 export type AssignmentSource = "AUTO" | "MANUAL";
+export type ConfirmationStatus = "NOT_REQUIRED" | "PENDING" | "ACCEPTED" | "DECLINED";
 
 export interface Parent {
   id: string;
   name: string;
   avatar: string | null;
+  email: string | null;
   connected: boolean;
   calendarId: string | null;
   availabilityCalendarId: string | null;
@@ -19,6 +21,14 @@ export interface Assignment {
   parentId: string;
   source: AssignmentSource;
   googleEventId: string | null;
+  confirmationStatus: ConfirmationStatus;
+}
+
+export interface AssignmentConfirmation {
+  helperName: string;
+  date: string;
+  type: AssignmentType;
+  status: ConfirmationStatus;
 }
 
 export interface Suggestion {
@@ -147,21 +157,48 @@ export const api = {
 
   getFamily: () => fetch(`${API_BASE_URL}/api/family`, { credentials: "include" }).then((r) => handle<Family>(r)),
 
-  addHelper: (input: { name: string; avatar?: string | null }) =>
+  addHelper: (input: { name: string; avatar?: string | null; email?: string | null }) =>
     fetch(`${API_BASE_URL}/api/family/helpers`, {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
-    }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
+    }).then((r) => handle<{ id: string; name: string; avatar: string | null; email: string | null }>(r)),
 
-  updateHelper: (id: string, input: { name: string; avatar?: string | null }) =>
+  updateHelper: (id: string, input: { name: string; avatar?: string | null; email?: string | null }) =>
     fetch(`${API_BASE_URL}/api/family/helpers/${id}`, {
       method: "PUT",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
-    }).then((r) => handle<{ id: string; name: string; avatar: string | null }>(r)),
+    }).then((r) => handle<{ id: string; name: string; avatar: string | null; email: string | null }>(r)),
+
+  getAssignmentConfirmation: (token: string) =>
+    fetch(`${API_BASE_URL}/api/assignment-confirmations/${encodeURIComponent(token)}`, { cache: "no-store" }).then((r) =>
+      handle<AssignmentConfirmation>(r),
+    ),
+
+  answerAssignmentConfirmation: (token: string, answer: "ACCEPTED" | "DECLINED") =>
+    fetch(`${API_BASE_URL}/api/assignment-confirmations/${encodeURIComponent(token)}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer }),
+    }).then((r) => handle<{ status: ConfirmationStatus }>(r)),
+
+  resendAssignmentConfirmation: async (id: string) => {
+    const response = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(id)}/confirmation`, {
+      method: "POST",
+      credentials: "include",
+    });
+    if (response.status === 401) {
+      window.location.href = "/";
+      throw new Error("ikke innlogget");
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+  },
 
   removeHelper: async (id: string) => {
     const response = await fetch(`${API_BASE_URL}/api/family/helpers/${id}`, {

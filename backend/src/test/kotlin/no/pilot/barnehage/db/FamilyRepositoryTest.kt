@@ -146,6 +146,19 @@ class FamilyRepositoryTest {
     }
 
     @Test
+    fun `helper e-post kan lagres og endres`() {
+        createParent()
+        val helper = repository.addHelper(familyId, "Bestemor", null, "bestemor@example.com")
+
+        assertEquals("bestemor@example.com", repository.findParent(helper.id)?.email)
+
+        repository.updateHelper(familyId, helper.id, "Bestemor", null, "ny@example.com")
+
+        assertEquals("ny@example.com", repository.findParent(helper.id)?.email)
+        transaction(database) { ParentsTable.deleteWhere { Op.build { ParentsTable.id eq helper.id } } }
+    }
+
+    @Test
     fun `hjelpere telles ikke med i parentCount`() {
         createParent()
         val helper = repository.addHelper(familyId, "Bestefar", null)

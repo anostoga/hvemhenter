@@ -40,6 +40,20 @@ npm run dev
 
 Appen migrerer databasen sjølv ved oppstart (`PostgresDatabase.connect()`)
 
+### Bekreftelse fra hjelpere
+
+Hjelpere kan få e-post når de tildeles levering eller henting, og svare via en
+tidsbegrenset lenke uten å logge inn. Tildeling fungerer uavhengig av e-posttjenesten:
+e-post sendes først når en forelder trykker «Send e-post» på den aktuelle
+hjelpertildelingen i ukeplanen. For å sende e-post må backend ha en
+Resend API-nøkkel (`RESEND_API_KEY`) og en verifisert avsenderadresse
+(`HELPER_EMAIL_FROM`). `FRONTEND_URL` må peke på appens offentlige adresse; lokalt
+brukes `http://localhost:3000`. Uten disse verdiene kan familier fortsatt tildele
+oppgaver til hjelpere; e-postknappen viser en feil hvis utsending ikke er konfigurert
+eller feiler. Hjelperens e-postadresse
+legges inn under Familie. Avslag vises i ukeplanen, der familien kan tildele
+oppgaven på nytt. En mislykket utsending kan forsøkes på nytt med samme knapp.
+
 `next.config.mjs` proxyar `/api/*`, `/auth/*` og `/join/*` til `BACKEND_URL`
 (server-only env-variabel), slik at nettlesaren berre snakkar med Next.js sin eige
 origin — ingen CORS involvert. Sesjonscookien frå backend blir dermed

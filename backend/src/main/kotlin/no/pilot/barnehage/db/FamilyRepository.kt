@@ -166,32 +166,46 @@ class FamilyRepository(private val database: Database) {
         }
     }
 
-    fun addHelper(familyId: UUID, name: String, avatar: String?): ParentRecord = transaction(database) {
+    fun addHelper(familyId: UUID, name: String, avatar: String?, email: String? = null): ParentRecord = transaction(database) {
         val parentId = ParentsTable.insert {
             it[ParentsTable.familyId] = familyId
             it[ParentsTable.name] = name
             it[ParentsTable.avatar] = avatar
+            it[ParentsTable.email] = email
             it[ParentsTable.isHelper] = true
         }[ParentsTable.id]
         ParentRecord(
             id = parentId,
             familyId = familyId,
             googleSub = null,
-            email = null,
+            email = email,
             name = name,
             avatar = avatar,
             isHelper = true,
         )
     }
 
-    fun updateHelper(familyId: UUID, parentId: UUID, name: String, avatar: String?): ParentRecord? = transaction(database) {
+    fun updateHelper(familyId: UUID, parentId: UUID, name: String, avatar: String?, email: String? = null): ParentRecord? = transaction(database) {
+        val existing = ParentsTable.selectAll().where {
+            (ParentsTable.id eq parentId) and (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq true)
+        }.firstOrNull() ?: return@transaction null
         val updated = ParentsTable.update({
             (ParentsTable.id eq parentId) and (ParentsTable.familyId eq familyId) and (ParentsTable.isHelper eq true)
         }) {
             it[ParentsTable.name] = name
             it[ParentsTable.avatar] = avatar
+            it[ParentsTable.email] = email
         }
         if (updated == 0) return@transaction null
+        if (existing[ParentsTable.email] != email) {
+            AssignmentsTable.update({
+                (AssignmentsTable.familyId eq familyId) and
+                    (AssignmentsTable.parentId eq parentId)
+            }) {
+                it[AssignmentsTable.confirmationTokenHash] = null
+                it[AssignmentsTable.confirmationTokenExpiresAt] = null
+            }
+        }
         ParentsTable.selectAll().where { ParentsTable.id eq parentId }.firstOrNull()?.toParentRecord()
     }
 

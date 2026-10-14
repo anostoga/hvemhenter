@@ -19,6 +19,7 @@ import no.pilot.barnehage.domain.Assignment
 import no.pilot.barnehage.domain.AssignmentService
 import no.pilot.barnehage.domain.AssignmentSource
 import no.pilot.barnehage.domain.AssignmentType
+import no.pilot.barnehage.domain.ConfirmationStatus
 import no.pilot.barnehage.domain.BusyPeriod
 import no.pilot.barnehage.domain.Parent
 import no.pilot.barnehage.domain.effectiveAvailabilityCalendarId
@@ -29,13 +30,10 @@ import no.pilot.barnehage.google.CalendarEventRequest
 import no.pilot.barnehage.google.CalendarEventTime
 import no.pilot.barnehage.google.CalendarService
 import org.jetbrains.exposed.sql.Database
-import org.slf4j.LoggerFactory
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
 import java.util.UUID
-
-private val logger = LoggerFactory.getLogger("no.pilot.barnehage.routes.AssignmentRoutes")
 
 @Serializable
 data class AssignRequest(
@@ -82,7 +80,9 @@ fun Route.assignmentRoutes(
 
             val parents = excludeHelpers(effectiveParents(familyRepository, tokenRepository, familyId))
             val repo = FamilyScopedAssignmentRepository(familyId, database)
-            val history = repo.all().map { it.toApiAssignment() }
+            val history = repo.all()
+                .filterNot { it.confirmationStatus == ConfirmationStatus.DECLINED }
+                .map { it.toApiAssignment() }
             val busyByParent = fetchBusyPeriods(parents, date, calendarService, accessTokenProvider)
 
             val (startTime, endTime) = defaultWindow(type)
@@ -110,6 +110,7 @@ fun Route.assignmentRoutes(
 
             val repo = FamilyScopedAssignmentRepository(familyId, database)
             val requestDate = LocalDate.parse(request.date)
+            val confirmationStatus = if (parent.isHelper) ConfirmationStatus.PENDING else ConfirmationStatus.NOT_REQUIRED
 
             val existing = repo.findByDateAndType(requestDate, request.type.name)
 
@@ -142,7 +143,13 @@ fun Route.assignmentRoutes(
             }
 
             val id = if (existing != null) {
-                repo.update(existing.id, parent.id, request.source.name, googleEventId)
+                repo.update(
+                    existing.id,
+                    parent.id,
+                    request.source.name,
+                    googleEventId,
+                    confirmationStatus,
+                )
                 existing.id
             } else {
                 repo.insert(
@@ -151,11 +158,20 @@ fun Route.assignmentRoutes(
                     parentId = parent.id,
                     source = request.source.name,
                     googleEventId = googleEventId,
+                    confirmationStatus = confirmationStatus,
                 )
             }
             call.respond(
                 if (existing != null) HttpStatusCode.OK else HttpStatusCode.Created,
-                Assignment(id = id.toString(), date = request.date, type = request.type, parentId = request.parentId, source = request.source, googleEventId = googleEventId),
+                Assignment(
+                    id = id.toString(),
+                    date = request.date,
+                    type = request.type,
+                    parentId = request.parentId,
+                    source = request.source,
+                    googleEventId = googleEventId,
+                    confirmationStatus = confirmationStatus,
+                ),
             )
         }
 
@@ -196,6 +212,7 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
     parentId = parentId.toString(),
     source = AssignmentSource.valueOf(source),
     googleEventId = googleEventId,
+    confirmationStatus = confirmationStatus,
 )
 
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
@@ -209,6 +226,7 @@ private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository
             availabilityCalendarId = parent.availabilityCalendarId,
             availabilityDisabled = parent.availabilityDisabled,
             isHelper = parent.isHelper,
+            email = parent.email.takeIf { parent.isHelper },
         )
     }
 

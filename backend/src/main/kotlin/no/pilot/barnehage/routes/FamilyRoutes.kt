@@ -22,13 +22,13 @@ import java.util.UUID
 data class FamilyResponse(val id: String, val inviteCode: String?)
 
 @Serializable
-data class AddHelperRequest(val name: String, val avatar: String? = null)
+data class AddHelperRequest(val name: String, val avatar: String? = null, val email: String? = null)
 
 @Serializable
-data class UpdateHelperRequest(val name: String, val avatar: String? = null)
+data class UpdateHelperRequest(val name: String, val avatar: String? = null, val email: String? = null)
 
 @Serializable
-data class HelperResponse(val id: String, val name: String, val avatar: String? = null)
+data class HelperResponse(val id: String, val name: String, val avatar: String? = null, val email: String? = null)
 
 fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
     authenticate(SESSION_AUTH_NAME) {
@@ -51,8 +51,10 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
             if (request.avatar != null && request.avatar !in ALLOWED_AVATARS) {
                 return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig avatar"))
             }
-            val helper = familyRepository.addHelper(familyId, trimmedName, request.avatar)
-            call.respond(HttpStatusCode.Created, HelperResponse(id = helper.id.toString(), name = helper.name, avatar = helper.avatar))
+            val email = normalizedHelperEmail(request.email)
+                ?: if (request.email.isNullOrBlank()) null else return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig e-postadresse"))
+            val helper = familyRepository.addHelper(familyId, trimmedName, request.avatar, email)
+            call.respond(HttpStatusCode.Created, helper.toHelperResponse())
         }
 
         put("/api/family/helpers/{id}") {
@@ -68,10 +70,12 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
             if (request.avatar != null && request.avatar !in ALLOWED_AVATARS) {
                 return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig avatar"))
             }
+            val email = normalizedHelperEmail(request.email)
+                ?: if (request.email.isNullOrBlank()) null else return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig e-postadresse"))
 
-            val updated = familyRepository.updateHelper(familyId, helperId, trimmedName, request.avatar)
+            val updated = familyRepository.updateHelper(familyId, helperId, trimmedName, request.avatar, email)
                 ?: return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("hjelper ikke funnet"))
-            call.respond(HelperResponse(id = updated.id.toString(), name = updated.name, avatar = updated.avatar))
+            call.respond(updated.toHelperResponse())
         }
 
         delete("/api/family/helpers/{id}") {
@@ -96,3 +100,11 @@ fun Route.familyRoutes(familyRepository: FamilyRepository, database: Database) {
         }
     }
 }
+
+private fun normalizedHelperEmail(email: String?): String? =
+    email?.trim()?.takeIf { it.isNotEmpty() }?.takeIf { it.length <= 254 && EMAIL_PATTERN.matches(it) }?.lowercase()
+
+private val EMAIL_PATTERN = Regex("^[^\\s@]+@[^\\s@]+\\.[^\\s@]+\$")
+
+private fun no.pilot.barnehage.db.ParentRecord.toHelperResponse() =
+    HelperResponse(id = id.toString(), name = name, avatar = avatar, email = email)

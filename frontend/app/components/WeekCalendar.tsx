@@ -17,6 +17,8 @@ interface WeekCalendarProps {
   onGenerateWeekPlan: (weekDays: string[]) => void;
   onResetWeekPlan: (weekDays: string[]) => void;
   onChangeAssignment: (date: string, type: AssignmentType, parentId: string) => void;
+  onResendConfirmation: (assignmentId: string) => void;
+  resendingAssignmentId?: string | null;
 }
 
 const TYPE_LABEL: Record<AssignmentType, string> = {
@@ -44,6 +46,8 @@ export function WeekCalendar({
   onGenerateWeekPlan,
   onResetWeekPlan,
   onChangeAssignment,
+  onResendConfirmation,
+  resendingAssignmentId = null,
 }: WeekCalendarProps) {
   const today = todayIso();
   const weeks = [days.slice(0, 5), days.slice(5, 10)];
@@ -79,7 +83,30 @@ export function WeekCalendar({
           </SelectContent>
         </Select>
         {}
-        <p className="m-0 min-h-[1em] text-xs text-muted-foreground">{assignment ? (assignment.source === "AUTO" ? "auto" : "manuelt") : "\u00A0"}</p>
+        <p className="m-0 min-h-[1em] text-xs text-muted-foreground">
+          {assignment
+            ? assignment.confirmationStatus === "PENDING"
+              ? "Venter på svar"
+              : assignment.confirmationStatus === "ACCEPTED"
+                ? "Godtatt"
+                : assignment.confirmationStatus === "DECLINED"
+                  ? "Avslått"
+                  : assignment.source === "AUTO"
+                    ? "auto"
+                    : "manuelt"
+            : "\u00A0"}
+        </p>
+        {assignment?.confirmationStatus === "PENDING" && assignment.id && (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            disabled={loading || resendingAssignmentId === assignment.id}
+            onClick={() => onResendConfirmation(assignment.id!)}
+          >
+            {resendingAssignmentId === assignment.id ? "Sender …" : "Send e-post"}
+          </Button>
+        )}
       </div>
     );
   }

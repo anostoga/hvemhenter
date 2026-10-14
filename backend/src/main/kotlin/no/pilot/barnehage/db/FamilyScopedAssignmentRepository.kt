@@ -6,6 +6,7 @@ import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.update
+import no.pilot.barnehage.domain.ConfirmationStatus
 import org.jetbrains.exposed.sql.Database
 import java.time.Instant
 import java.time.LocalDate
@@ -18,7 +19,17 @@ data class FamilyAssignment(
     val parentId: UUID,
     val source: String,
     val googleEventId: String?,
+    val confirmationStatus: ConfirmationStatus,
 )
+
+data class AssignmentConfirmation(
+    val date: LocalDate,
+    val type: String,
+    val helperName: String,
+    val status: ConfirmationStatus,
+)
+
+enum class ConfirmationAnswerResult { UPDATED, ALREADY_RECORDED, INVALID_OR_EXPIRED, CONFLICT }
 
 class FamilyScopedAssignmentRepository(private val familyId: UUID, private val database: Database) {
 
@@ -37,7 +48,16 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .map { it.toFamilyAssignment() }
     }
 
-    fun insert(date: LocalDate, type: String, parentId: UUID, source: String, googleEventId: String?): UUID = transaction(database) {
+    fun insert(
+        date: LocalDate,
+        type: String,
+        parentId: UUID,
+        source: String,
+        googleEventId: String?,
+        confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
+        confirmationTokenHash: String? = null,
+        confirmationTokenExpiresAt: Instant? = null,
+    ): UUID = transaction(database) {
         AssignmentsTable.insert {
             it[AssignmentsTable.familyId] = this@FamilyScopedAssignmentRepository.familyId
             it[AssignmentsTable.date] = date
@@ -45,6 +65,9 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             it[AssignmentsTable.parentId] = parentId
             it[AssignmentsTable.assignmentSource] = source
             it[AssignmentsTable.googleEventId] = googleEventId
+            it[AssignmentsTable.confirmationStatus] = confirmationStatus.name
+            it[AssignmentsTable.confirmationTokenHash] = confirmationTokenHash
+            it[AssignmentsTable.confirmationTokenExpiresAt] = confirmationTokenExpiresAt
             it[createdAt] = Instant.now()
         }[AssignmentsTable.id]
     }
@@ -56,12 +79,34 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             .firstOrNull()?.toFamilyAssignment()
     }
 
-    fun update(id: UUID, parentId: UUID, source: String, googleEventId: String?) = transaction(database) {
+    fun update(
+        id: UUID,
+        parentId: UUID,
+        source: String,
+        googleEventId: String?,
+        confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
+        confirmationTokenHash: String? = null,
+        confirmationTokenExpiresAt: Instant? = null,
+    ) = transaction(database) {
         AssignmentsTable.update({ AssignmentsTable.id eq id }) {
             it[AssignmentsTable.parentId] = parentId
             it[AssignmentsTable.assignmentSource] = source
             it[AssignmentsTable.googleEventId] = googleEventId
+            it[AssignmentsTable.confirmationStatus] = confirmationStatus.name
+            it[AssignmentsTable.confirmationTokenHash] = confirmationTokenHash
+            it[AssignmentsTable.confirmationTokenExpiresAt] = confirmationTokenExpiresAt
         }
+    }
+
+    fun updateConfirmationToken(id: UUID, tokenHash: String, expiresAt: Instant): Boolean = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name)
+        }) {
+            it[AssignmentsTable.confirmationTokenHash] = tokenHash
+            it[AssignmentsTable.confirmationTokenExpiresAt] = expiresAt
+        } > 0
     }
 
     fun findById(id: UUID): FamilyAssignment? = transaction(database) {
@@ -102,5 +147,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         parentId = this[AssignmentsTable.parentId],
         source = this[AssignmentsTable.assignmentSource],
         googleEventId = this[AssignmentsTable.googleEventId],
+        confirmationStatus = ConfirmationStatus.valueOf(this[AssignmentsTable.confirmationStatus]),
     )
 }

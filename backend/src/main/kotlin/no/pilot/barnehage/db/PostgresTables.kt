@@ -81,6 +81,9 @@ object AssignmentsTable : Table("assignments") {
     val parentId = uuid("parent_id").references(ParentsTable.id, onDelete = org.jetbrains.exposed.sql.ReferenceOption.CASCADE)
     val assignmentSource = text("source")
     val googleEventId = text("google_event_id").nullable()
+    val confirmationStatus = text("confirmation_status").default("NOT_REQUIRED")
+    val confirmationTokenHash = text("confirmation_token_hash").nullable()
+    val confirmationTokenExpiresAt = timestamp("confirmation_token_expires_at").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
     override val primaryKey = PrimaryKey(id)
 }

@@ -23,6 +23,7 @@ interface HelperFormState {
   id: string | null;
   name: string;
   avatar: string | null;
+  email: string;
 }
 
 export default function HelpersManager({ initialParents }: HelpersManagerProps) {
@@ -39,12 +40,12 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
 
   function openAddDialog() {
     setError(null);
-    setFormState({ mode: "add", id: null, name: "", avatar: null });
+    setFormState({ mode: "add", id: null, name: "", avatar: null, email: "" });
   }
 
   function openEditDialog(helper: Parent) {
     setError(null);
-    setFormState({ mode: "edit", id: helper.id, name: helper.name, avatar: helper.avatar });
+    setFormState({ mode: "edit", id: helper.id, name: helper.name, avatar: helper.avatar, email: helper.email ?? "" });
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -55,7 +56,8 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
     try {
       const trimmedName = formState.name.trim();
       if (formState.mode === "add") {
-        const helper = await api.addHelper({ name: trimmedName, avatar: formState.avatar });
+        const email = formState.email.trim() || null;
+        const helper = await api.addHelper({ name: trimmedName, avatar: formState.avatar, email });
 
         setParents((prev) => [
           ...prev,
@@ -63,6 +65,7 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
             id: helper.id,
             name: helper.name,
             avatar: helper.avatar,
+            email: helper.email,
             connected: false,
             calendarId: null,
             availabilityCalendarId: null,
@@ -70,9 +73,10 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
           },
         ]);
       } else {
-        const updated = await api.updateHelper(formState.id!, { name: trimmedName, avatar: formState.avatar });
+        const email = formState.email.trim() || null;
+        const updated = await api.updateHelper(formState.id!, { name: trimmedName, avatar: formState.avatar, email });
         setParents((prev) =>
-          prev.map((p) => (p.id === updated.id ? { ...p, name: updated.name, avatar: updated.avatar } : p)),
+          prev.map((p) => (p.id === updated.id ? { ...p, name: updated.name, avatar: updated.avatar, email: updated.email } : p)),
         );
       }
       setFormState(null);
@@ -126,7 +130,7 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
         <h2>Hjelpere</h2>
         <p>
           Personer (f.eks. besteforeldre eller andre slektninger) som kan tildeles levering/henting, men som ikke
-          logger inn i appen selv.
+          logger inn i appen selv. Du kan sende en e-post med lenke for å godta eller avslå hver tildeling fra ukeplanen.
         </p>
 
         {error && <p className="text-destructive">{error}</p>}
@@ -136,6 +140,8 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
             {helpers.map((h) => (
               <li key={h.id} className="flex items-center gap-2">
                 {h.avatar && <span aria-hidden="true">{h.avatar}</span>} {h.name}
+                {h.email && <span className="text-sm text-muted-foreground">({h.email})</span>}
+                {!h.email && <span className="text-sm text-muted-foreground">(e-post mangler)</span>}
                 <Button type="button" variant="default" size="lg" onClick={() => openEditDialog(h)}>
                   Rediger
                 </Button>
@@ -175,6 +181,17 @@ export default function HelpersManager({ initialParents }: HelpersManagerProps) 
                   required
                   autoFocus
                 />
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="helperEmail">E-postadresse</Label>
+                <Input
+                  id="helperEmail"
+                  type="email"
+                  value={formState.email}
+                  onChange={(e) => setFormState({ ...formState, email: e.target.value })}
+                  placeholder="navn@eksempel.no"
+                />
+                <p className="text-sm text-muted-foreground">Nødvendig for å sende tildelinger til hjelperen.</p>
               </div>
               <div className="flex flex-col gap-1.5">
                 <span id="helperAvatarLabel">Avatar (valgfritt)</span>
