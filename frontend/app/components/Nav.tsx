@@ -18,7 +18,9 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   const pathname = usePathname();
 
   function navLinkClassName(href: string) {
-    return pathname === href ? "underline underline-offset-2" : "no-underline";
+    return pathname === href
+      ? "rounded-full bg-primary-foreground/15 px-3 py-1 no-underline"
+      : "rounded-full px-3 py-1 no-underline hover:bg-primary-foreground/10";
   }
 
   async function handleLogout() {
@@ -27,7 +29,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
   }
 
   return (
-    <nav className="flex flex-col gap-2">
+    <nav className="flex flex-col">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2 font-semibold text-inherit no-underline">
           <Logo height={76} />
@@ -59,7 +61,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
           </Button>
         )}
       </div>
-      <span className="flex flex-wrap items-center gap-4">
+      <span className="flex flex-wrap items-center gap-2 border-t border-primary-foreground/20 pt-3">
         {who.loggedIn ? (
           <>
             <Link href="/" className={navLinkClassName("/")}>Forside</Link>
