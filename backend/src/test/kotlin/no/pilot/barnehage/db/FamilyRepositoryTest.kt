@@ -5,6 +5,7 @@ import org.jetbrains.exposed.sql.Op
 import org.jetbrains.exposed.sql.deleteWhere
 import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.transactions.transaction
+import java.time.LocalDate
 import java.util.UUID
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -179,6 +180,18 @@ class FamilyRepositoryTest {
         assertEquals(false, removedParent, "en innlogget forelder skal IKKE kunne fjernes via removeHelper")
         assertNull(repository.findParent(helper.id))
         assertEquals(parentId, repository.findParent(parentId)!!.id, "forelderen skal fortsatt finnes")
+    }
+
+    @Test
+    fun `removeParent fjerner ogsaa forelderens tildelinger`() {
+        createParent()
+        val assignmentRepository = FamilyScopedAssignmentRepository(familyId, database)
+        assignmentRepository.insert(LocalDate.of(2020, 1, 1), "DROPOFF", parentId, "MANUAL", null)
+
+        assertEquals(true, repository.removeParent(familyId, parentId))
+
+        assertNull(repository.findParent(parentId))
+        assertEquals(0, assignmentRepository.all().size)
     }
 
     @Test

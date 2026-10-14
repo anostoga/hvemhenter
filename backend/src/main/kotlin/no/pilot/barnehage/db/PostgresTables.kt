@@ -78,7 +78,7 @@ object AssignmentsTable : Table("assignments") {
     val familyId = uuid("family_id").references(FamiliesTable.id)
     val date = date("date")
     val type = text("type")
-    val parentId = uuid("parent_id").references(ParentsTable.id)
+    val parentId = uuid("parent_id").references(ParentsTable.id, onDelete = org.jetbrains.exposed.sql.ReferenceOption.CASCADE)
     val assignmentSource = text("source")
     val googleEventId = text("google_event_id").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
