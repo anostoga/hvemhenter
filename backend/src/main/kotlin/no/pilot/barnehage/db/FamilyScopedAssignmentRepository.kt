@@ -24,6 +24,7 @@ data class FamilyAssignment(
 )
 
 data class AssignmentConfirmation(
+    val familyId: UUID,
     val date: LocalDate,
     val type: String,
     val helperName: String,

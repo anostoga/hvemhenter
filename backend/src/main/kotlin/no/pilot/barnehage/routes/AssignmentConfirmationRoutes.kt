@@ -69,8 +69,33 @@ fun Route.assignmentConfirmationRoutes(
             return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("svaret må være godta eller avslå"))
         }
 
-        when (AssignmentConfirmationRepository(database).answer(AssignmentConfirmationTokens.hash(token), answer)) {
-            ConfirmationAnswerResult.UPDATED, ConfirmationAnswerResult.ALREADY_RECORDED ->
+        val confirmationRepository = AssignmentConfirmationRepository(database)
+        val tokenHash = AssignmentConfirmationTokens.hash(token)
+        val confirmation = confirmationRepository.find(tokenHash)
+        when (confirmationRepository.answer(tokenHash, answer)) {
+            ConfirmationAnswerResult.UPDATED -> {
+                if (confirmation != null) {
+                    val recipientEmails = familyRepository.findParents(confirmation.familyId)
+                        .filter { !it.isHelper }
+                        .mapNotNull { it.email?.trim()?.takeIf(String::isNotEmpty) }
+                        .distinct()
+                    for (email in recipientEmails) {
+                        try {
+                            notifier.sendAnswerNotification(
+                                email = email,
+                                helperName = confirmation.helperName,
+                                date = confirmation.date.toString(),
+                                assignmentType = assignmentLabel(confirmation.type),
+                                answer = if (answer == ConfirmationStatus.ACCEPTED) "godtatt" else "avslått",
+                            )
+                        } catch (e: HelperNotificationException) {
+                            logger.error("Kunne ikke varsle forelder om svar på tildeling", e)
+                        }
+                    }
+                }
+                call.respond(HttpStatusCode.OK, mapOf("status" to answer.name))
+            }
+            ConfirmationAnswerResult.ALREADY_RECORDED ->
                 call.respond(HttpStatusCode.OK, mapOf("status" to answer.name))
             ConfirmationAnswerResult.INVALID_OR_EXPIRED ->
                 call.respond(HttpStatusCode.NotFound, ErrorResponse("bekreftelseslenken er ugyldig eller utløpt"))

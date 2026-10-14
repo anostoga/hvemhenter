@@ -21,6 +21,7 @@ class AssignmentConfirmationRepository(private val database: Database) {
             .firstOrNull() ?: return@transaction null
 
         AssignmentConfirmation(
+            familyId = assignment[AssignmentsTable.familyId],
             date = assignment[AssignmentsTable.date],
             type = assignment[AssignmentsTable.type],
             helperName = parent[ParentsTable.name],

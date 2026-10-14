@@ -23,6 +23,14 @@ interface HelperAssignmentNotifier {
         assignmentType: String,
         token: String,
     )
+
+    suspend fun sendAnswerNotification(
+        email: String,
+        helperName: String,
+        date: String,
+        assignmentType: String,
+        answer: String,
+    )
 }
 
 class HelperNotificationException(message: String, cause: Throwable? = null) : RuntimeException(message, cause)
@@ -67,6 +75,48 @@ class ResendHelperAssignmentNotifier(
                         html = emailHtml(helperName, assignmentType, date, responseUrl),
                         text = "Hei $helperName! Du er satt opp på $assignmentType $date. " +
                             "Svar her: $responseUrl",
+                    ),
+                )
+            }
+            if (!response.status.isSuccess()) {
+                throw HelperNotificationException("E-postleverandøren avviste forespørselen (${response.status.value})")
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: HelperNotificationException) {
+            throw e
+        } catch (e: Exception) {
+            throw HelperNotificationException("Kunne ikke kontakte e-postleverandøren", e)
+        }
+    }
+
+    override suspend fun sendAnswerNotification(
+        email: String,
+        helperName: String,
+        date: String,
+        assignmentType: String,
+        answer: String,
+    ) {
+        val apiKey = apiKey?.takeIf(String::isNotBlank)
+            ?: throw HelperNotificationException("Varsling av hjelpere er ikke konfigurert")
+        val fromAddress = fromAddress?.takeIf(String::isNotBlank)
+            ?: throw HelperNotificationException("Varsling av hjelpere er ikke konfigurert")
+        val formattedDate = LocalDate.parse(date).format(DateTimeFormatter.ofPattern("dd.MM.yyyy"))
+        val safeName = helperName.htmlEscape()
+        val safeType = assignmentType.htmlEscape()
+        val safeDate = formattedDate.htmlEscape()
+        val safeAnswer = answer.htmlEscape()
+        try {
+            val response = httpClient.post("https://api.resend.com/emails") {
+                header("Authorization", "Bearer $apiKey")
+                contentType(ContentType.Application.Json)
+                setBody(
+                    ResendEmailRequest(
+                        from = fromAddress,
+                        to = listOf(email),
+                        subject = "$helperName har $answer $assignmentType $formattedDate",
+                        html = "<p>Hjelperen $safeName har $safeAnswer oppgaven $safeType $safeDate.</p>",
+                        text = "Hjelperen $helperName har $answer oppgaven $assignmentType $formattedDate.",
                     ),
                 )
             }
