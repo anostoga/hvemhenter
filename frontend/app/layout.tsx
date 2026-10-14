@@ -27,6 +27,17 @@ j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
 'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
 })(window,document,'script','dataLayer','GTM-PTSNBFC3');`}
         </Script>
+        <Script
+          id="google-analytics-tag"
+          src="https://www.googletagmanager.com/gtag/js?id=G-67MHST98K1"
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics-config" strategy="afterInteractive">
+          {`window.dataLayer = window.dataLayer || [];
+function gtag(){window.dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', 'G-67MHST98K1');`}
+        </Script>
       </head>
       <body className="flex min-h-screen flex-col font-sans">
         <noscript>
