@@ -30,7 +30,7 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
     <nav className="flex flex-col gap-2">
       <div className="flex items-center justify-between gap-3">
         <Link href="/" className="flex items-center gap-2 font-semibold text-inherit no-underline">
-          <Logo height={64} />
+          <Logo height={76} />
         </Link>
         {who.loggedIn ? (
           <DropdownMenu>
