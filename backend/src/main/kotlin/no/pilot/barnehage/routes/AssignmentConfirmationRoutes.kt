@@ -39,6 +39,12 @@ data class AssignmentConfirmationResponse(
 @Serializable
 data class AssignmentConfirmationAnswerRequest(val answer: ConfirmationStatus)
 
+@Serializable
+data class AssignmentConfirmationLinkResponse(val path: String)
+
+@Serializable
+data class AssignmentConfirmationEmailRequest(val token: String? = null)
+
 fun Route.assignmentConfirmationRoutes(
     familyRepository: FamilyRepository,
     database: Database,
@@ -75,23 +81,15 @@ fun Route.assignmentConfirmationRoutes(
         when (confirmationRepository.answer(tokenHash, answer)) {
             ConfirmationAnswerResult.UPDATED -> {
                 if (confirmation != null) {
-                    val recipientEmails = familyRepository.findParents(confirmation.familyId)
-                        .filter { !it.isHelper }
-                        .mapNotNull { it.email?.trim()?.takeIf(String::isNotEmpty) }
-                        .distinct()
-                    for (email in recipientEmails) {
-                        try {
-                            notifier.sendAnswerNotification(
-                                email = email,
-                                helperName = confirmation.helperName,
-                                date = confirmation.date.toString(),
-                                assignmentType = assignmentLabel(confirmation.type),
-                                answer = if (answer == ConfirmationStatus.ACCEPTED) "godtatt" else "avslått",
-                            )
-                        } catch (e: HelperNotificationException) {
-                            logger.error("Kunne ikke varsle forelder om svar på tildeling", e)
-                        }
-                    }
+                    notifyFamilyOfAnswer(
+                        familyRepository = familyRepository,
+                        notifier = notifier,
+                        familyId = confirmation.familyId,
+                        helperName = confirmation.helperName,
+                        date = confirmation.date.toString(),
+                        type = confirmation.type,
+                        answer = answer,
+                    )
                 }
                 call.respond(HttpStatusCode.OK, mapOf("status" to answer.name))
             }
@@ -105,7 +103,77 @@ fun Route.assignmentConfirmationRoutes(
     }
 
     authenticate(SESSION_AUTH_NAME) {
+        post("/api/assignments/{id}/confirmation-answer") {
+            val session = call.userSession()!!
+            val familyId = UUID.fromString(session.familyId)
+            val assignmentId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
+            val answer = call.receive<AssignmentConfirmationAnswerRequest>().answer
+            if (answer != ConfirmationStatus.ACCEPTED && answer != ConfirmationStatus.DECLINED) {
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("svaret må være godtatt eller avslått"))
+            }
+
+            val assignmentRepo = FamilyScopedAssignmentRepository(familyId, database)
+            val assignment = assignmentRepo.findById(assignmentId)
+                ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
+            if (assignment.confirmationStatus != ConfirmationStatus.PENDING) {
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen venter ikke på svar"))
+            }
+            val helper = familyRepository.findParent(assignment.parentId)
+                ?.takeIf { it.familyId == familyId && it.isHelper }
+                ?: return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen gjelder ikke en hjelper"))
+
+            when (assignmentRepo.answerPendingConfirmation(assignmentId, assignment.parentId, answer)) {
+                ConfirmationAnswerResult.UPDATED -> {
+                    notifyFamilyOfAnswer(
+                        familyRepository = familyRepository,
+                        notifier = notifier,
+                        familyId = familyId,
+                        helperName = helper.name,
+                        date = assignment.date.toString(),
+                        type = assignment.type,
+                        answer = answer,
+                    )
+                    call.respond(HttpStatusCode.OK, mapOf("status" to answer.name))
+                }
+                ConfirmationAnswerResult.ALREADY_RECORDED ->
+                    call.respond(HttpStatusCode.OK, mapOf("status" to answer.name))
+                else -> call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen er allerede besvart"))
+            }
+        }
+    }
+
+    authenticate(SESSION_AUTH_NAME) {
+        post("/api/assignments/{id}/confirmation-link") {
+            call.response.headers.append(HttpHeaders.CacheControl, "no-store")
+            val session = call.userSession()!!
+            val familyId = UUID.fromString(session.familyId)
+            val assignmentId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
+            val assignmentRepo = FamilyScopedAssignmentRepository(familyId, database)
+            val assignment = assignmentRepo.findById(assignmentId)
+                ?: return@post call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
+            if (assignment.confirmationStatus != ConfirmationStatus.PENDING) {
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen venter ikke på svar"))
+            }
+            val helper = familyRepository.findParent(assignment.parentId)
+                ?.takeIf { it.familyId == familyId && it.isHelper }
+                ?: return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen gjelder ikke en hjelper"))
+
+            val token = AssignmentConfirmationTokens.generate()
+            val expiresAt = Instant.now().plus(7, ChronoUnit.DAYS)
+            if (!assignmentRepo.replaceConfirmationToken(assignmentId, token.hash, expiresAt)) {
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen kan ikke varsles lenger"))
+            }
+
+            call.respond(
+                HttpStatusCode.Created,
+                AssignmentConfirmationLinkResponse(path = confirmationPath(token.value)),
+            )
+        }
+
         post("/api/assignments/{id}/confirmation") {
+            val request = call.receive<AssignmentConfirmationEmailRequest>()
             val session = call.userSession()!!
             val familyId = UUID.fromString(session.familyId)
             val assignmentId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
@@ -128,10 +196,29 @@ fun Route.assignmentConfirmationRoutes(
                 return@post call.respond(HttpStatusCode.ServiceUnavailable, ErrorResponse("e-postvarsling er ikke konfigurert"))
             }
 
-            val token = AssignmentConfirmationTokens.generate()
-            val expiresAt = Instant.now().plus(7, ChronoUnit.DAYS)
-            if (!assignmentRepo.updateConfirmationToken(assignmentId, token.hash, expiresAt)) {
-                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen kan ikke varsles lenger"))
+            val suppliedToken = request.token
+            if (suppliedToken != null && !TOKEN_PATTERN.matches(suppliedToken)) {
+                return@post call.respond(HttpStatusCode.BadRequest, ErrorResponse("bekreftelseslenken er ugyldig"))
+            }
+            val token = if (suppliedToken == null) {
+                AssignmentConfirmationTokens.generate().also { generated ->
+                    val expiresAt = Instant.now().plus(7, ChronoUnit.DAYS)
+                    if (!assignmentRepo.updateConfirmationToken(assignmentId, generated.hash, expiresAt)) {
+                        return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("tildelingen kan ikke varsles lenger"))
+                    }
+                }
+            } else {
+                val hash = AssignmentConfirmationTokens.hash(suppliedToken)
+                if (!assignmentRepo.hasActiveConfirmationToken(assignmentId, hash)) {
+                    return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("bekreftelseslenken er ikke lenger gyldig"))
+                }
+                no.pilot.barnehage.crypto.AssignmentConfirmationToken(suppliedToken, hash)
+            }
+            if (!assignmentRepo.markConfirmationEmailSent(assignmentId, token.hash)) {
+                if (suppliedToken == null) {
+                    assignmentRepo.clearConfirmationToken(assignmentId, token.hash)
+                }
+                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("bekreftelses-e-posten er allerede sendt"))
             }
             try {
                 notifier.sendConfirmationRequest(
@@ -142,13 +229,13 @@ fun Route.assignmentConfirmationRoutes(
                     token = token.value,
                 )
             } catch (e: HelperNotificationException) {
-                assignmentRepo.clearConfirmationToken(assignmentId, token.hash)
+                if (suppliedToken == null) {
+                    assignmentRepo.clearConfirmationToken(assignmentId, token.hash)
+                } else {
+                    assignmentRepo.clearConfirmationEmailSent(assignmentId, token.hash)
+                }
                 logger.error("Kunne ikke sende bekreftelsesforespørsel for tildeling $assignmentId", e)
                 return@post call.respond(HttpStatusCode.BadGateway, ErrorResponse("kunne ikke sende e-post, prøv igjen"))
-            }
-            if (!assignmentRepo.markConfirmationEmailSent(assignmentId, token.hash)) {
-                logger.error("E-post sendt, men kunne ikke merke bekreftelse som sendt for tildeling $assignmentId")
-                return@post call.respond(HttpStatusCode.Conflict, ErrorResponse("e-posten ble sendt, men tildelingen ble endret"))
             }
             call.respond(HttpStatusCode.Accepted)
         }
@@ -156,6 +243,36 @@ fun Route.assignmentConfirmationRoutes(
 }
 
 private val TOKEN_PATTERN = Regex("^[A-Za-z0-9_-]{43}$")
+
+private suspend fun notifyFamilyOfAnswer(
+    familyRepository: FamilyRepository,
+    notifier: HelperAssignmentNotifier,
+    familyId: UUID,
+    helperName: String,
+    date: String,
+    type: String,
+    answer: ConfirmationStatus,
+) {
+    val recipientEmails = familyRepository.findParents(familyId)
+        .filter { !it.isHelper }
+        .mapNotNull { it.email?.trim()?.takeIf(String::isNotEmpty) }
+        .distinct()
+    for (email in recipientEmails) {
+        try {
+            notifier.sendAnswerNotification(
+                email = email,
+                helperName = helperName,
+                date = date,
+                assignmentType = assignmentLabel(type),
+                answer = if (answer == ConfirmationStatus.ACCEPTED) "godtatt" else "avslått",
+            )
+        } catch (e: HelperNotificationException) {
+            logger.error("Kunne ikke varsle forelder om svar på tildeling", e)
+        }
+    }
+}
+
+internal fun confirmationPath(token: String) = "/bekreft/$token"
 
 internal fun assignmentLabel(type: String): String = when (type) {
     "DROPOFF" -> "levering"

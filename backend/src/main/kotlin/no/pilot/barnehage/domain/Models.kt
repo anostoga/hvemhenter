@@ -43,6 +43,7 @@ data class Assignment(
     val source: AssignmentSource,
     val googleEventId: String? = null,
     val confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
+    val confirmationLinkIssued: Boolean = false,
     val confirmationEmailSent: Boolean = false,
 )
 

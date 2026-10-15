@@ -204,6 +204,8 @@ class FamilyRepository(private val database: Database) {
             }) {
                 it[AssignmentsTable.confirmationTokenHash] = null
                 it[AssignmentsTable.confirmationTokenExpiresAt] = null
+                it[AssignmentsTable.confirmationLinkIssued] = false
+                it[AssignmentsTable.confirmationEmailSent] = false
             }
         }
         ParentsTable.selectAll().where { ParentsTable.id eq parentId }.firstOrNull()?.toParentRecord()

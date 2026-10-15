@@ -20,6 +20,7 @@ data class FamilyAssignment(
     val source: String,
     val googleEventId: String?,
     val confirmationStatus: ConfirmationStatus,
+    val confirmationLinkIssued: Boolean,
     val confirmationEmailSent: Boolean,
 )
 
@@ -87,16 +88,16 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         source: String,
         googleEventId: String?,
         confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
-        confirmationTokenHash: String? = null,
-        confirmationTokenExpiresAt: Instant? = null,
     ) = transaction(database) {
         AssignmentsTable.update({ AssignmentsTable.id eq id }) {
             it[AssignmentsTable.parentId] = parentId
             it[AssignmentsTable.assignmentSource] = source
             it[AssignmentsTable.googleEventId] = googleEventId
             it[AssignmentsTable.confirmationStatus] = confirmationStatus.name
-            it[AssignmentsTable.confirmationTokenHash] = confirmationTokenHash
-            it[AssignmentsTable.confirmationTokenExpiresAt] = confirmationTokenExpiresAt
+            it[AssignmentsTable.confirmationTokenHash] = null
+            it[AssignmentsTable.confirmationTokenExpiresAt] = null
+            it[AssignmentsTable.confirmationLinkIssued] = false
+            it[AssignmentsTable.confirmationEmailSent] = false
         }
     }
 
@@ -104,22 +105,98 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         AssignmentsTable.update({
             (AssignmentsTable.familyId eq familyId) and
                 (AssignmentsTable.id eq id) and
+            (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name) and
+            (AssignmentsTable.confirmationLinkIssued eq false)
+        }) {
+            it[AssignmentsTable.confirmationTokenHash] = tokenHash
+            it[AssignmentsTable.confirmationTokenExpiresAt] = expiresAt
+            it[AssignmentsTable.confirmationLinkIssued] = true
+            it[AssignmentsTable.confirmationEmailSent] = false
+        } > 0
+    }
+
+    fun replaceConfirmationToken(id: UUID, tokenHash: String, expiresAt: Instant): Boolean = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
                 (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name)
         }) {
             it[AssignmentsTable.confirmationTokenHash] = tokenHash
             it[AssignmentsTable.confirmationTokenExpiresAt] = expiresAt
+            it[AssignmentsTable.confirmationLinkIssued] = true
             it[AssignmentsTable.confirmationEmailSent] = false
         } > 0
+    }
+
+    fun markConfirmationLinkIssued(id: UUID, tokenHash: String): Boolean = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationTokenHash eq tokenHash)
+        }) {
+            it[AssignmentsTable.confirmationLinkIssued] = true
+        } > 0
+    }
+
+    fun answerPendingConfirmation(id: UUID, parentId: UUID, answer: ConfirmationStatus): ConfirmationAnswerResult = transaction(database) {
+        val updated = AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.parentId eq parentId) and
+                (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name)
+        }) {
+            it[AssignmentsTable.confirmationStatus] = answer.name
+        }
+        if (updated > 0) {
+            ConfirmationAnswerResult.UPDATED
+        } else {
+            val currentStatus = AssignmentsTable.selectAll()
+                .where {
+                    (AssignmentsTable.familyId eq familyId) and
+                        (AssignmentsTable.id eq id) and
+                        (AssignmentsTable.parentId eq parentId)
+                }
+                .firstOrNull()
+                ?.get(AssignmentsTable.confirmationStatus)
+                ?.let(ConfirmationStatus::valueOf)
+            if (currentStatus == answer) {
+                ConfirmationAnswerResult.ALREADY_RECORDED
+            } else {
+                ConfirmationAnswerResult.CONFLICT
+            }
+        }
     }
 
     fun markConfirmationEmailSent(id: UUID, tokenHash: String): Boolean = transaction(database) {
         AssignmentsTable.update({
             (AssignmentsTable.familyId eq familyId) and
                 (AssignmentsTable.id eq id) and
-                (AssignmentsTable.confirmationTokenHash eq tokenHash)
+                (AssignmentsTable.confirmationTokenHash eq tokenHash) and
+                (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name) and
+                (AssignmentsTable.confirmationEmailSent eq false)
         }) {
             it[AssignmentsTable.confirmationEmailSent] = true
         } > 0
+    }
+
+    fun clearConfirmationEmailSent(id: UUID, tokenHash: String) = transaction(database) {
+        AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationTokenHash eq tokenHash)
+        }) {
+            it[AssignmentsTable.confirmationEmailSent] = false
+        }
+    }
+
+    fun hasActiveConfirmationToken(id: UUID, tokenHash: String): Boolean = transaction(database) {
+        AssignmentsTable.selectAll().where {
+            (AssignmentsTable.familyId eq familyId) and
+                (AssignmentsTable.id eq id) and
+                (AssignmentsTable.confirmationTokenHash eq tokenHash) and
+                (AssignmentsTable.confirmationTokenExpiresAt greater Instant.now()) and
+                (AssignmentsTable.confirmationStatus eq ConfirmationStatus.PENDING.name)
+        }.any()
     }
 
     fun clearConfirmationToken(id: UUID, tokenHash: String) = transaction(database) {
@@ -130,6 +207,7 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         }) {
             it[AssignmentsTable.confirmationTokenHash] = null
             it[AssignmentsTable.confirmationTokenExpiresAt] = null
+            it[AssignmentsTable.confirmationLinkIssued] = false
             it[AssignmentsTable.confirmationEmailSent] = false
         }
     }
@@ -173,6 +251,7 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         source = this[AssignmentsTable.assignmentSource],
         googleEventId = this[AssignmentsTable.googleEventId],
         confirmationStatus = ConfirmationStatus.valueOf(this[AssignmentsTable.confirmationStatus]),
+        confirmationLinkIssued = this[AssignmentsTable.confirmationLinkIssued],
         confirmationEmailSent = this[AssignmentsTable.confirmationEmailSent],
     )
 }

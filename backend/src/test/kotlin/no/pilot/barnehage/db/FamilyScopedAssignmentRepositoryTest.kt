@@ -146,7 +146,7 @@ class FamilyScopedAssignmentRepositoryTest {
 
         val saved = repo.findById(id)
 
-        assertEquals(false, saved?.confirmationEmailSent)
+        assertEquals(false, saved?.confirmationLinkIssued)
     }
 
     @Test
@@ -189,15 +189,85 @@ class FamilyScopedAssignmentRepositoryTest {
 
         assertNull(AssignmentConfirmationRepository(database).find(oldHash))
         assertEquals(ConfirmationStatus.PENDING, repo.findById(id)?.confirmationStatus)
+        assertEquals(false, repo.findById(id)?.confirmationLinkIssued)
+        assertEquals(false, repo.findById(id)?.confirmationEmailSent)
         val newHash = "c".repeat(64)
         assertTrue(repo.updateConfirmationToken(id, newHash, Instant.now().plusSeconds(3600)))
-        assertEquals(false, repo.findById(id)?.confirmationEmailSent)
-        assertTrue(repo.markConfirmationEmailSent(id, newHash))
-        assertEquals(true, repo.findById(id)?.confirmationEmailSent)
+        assertEquals(true, repo.findById(id)?.confirmationLinkIssued)
+        assertTrue(repo.markConfirmationLinkIssued(id, newHash))
+        assertEquals(true, repo.findById(id)?.confirmationLinkIssued)
         val confirmationRepository = AssignmentConfirmationRepository(database)
         assertEquals(ConfirmationStatus.PENDING, confirmationRepository.find(newHash)?.status)
         assertEquals(ConfirmationAnswerResult.UPDATED, confirmationRepository.answer(newHash, ConfirmationStatus.ACCEPTED))
         assertEquals(ConfirmationAnswerResult.ALREADY_RECORDED, confirmationRepository.answer(newHash, ConfirmationStatus.ACCEPTED))
         assertEquals(ConfirmationAnswerResult.CONFLICT, confirmationRepository.answer(newHash, ConfirmationStatus.DECLINED))
+    }
+
+    @Test
+    fun `ny delingslenke erstatter den forrige lenken`() {
+        val helper = FamilyRepository(database).addHelper(familyA, "Bestemor", null)
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val firstHash = "d".repeat(64)
+        val secondHash = "e".repeat(64)
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 4),
+            type = "PICKUP",
+            parentId = helper.id,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+        )
+
+        assertTrue(repo.replaceConfirmationToken(id, firstHash, Instant.now().plusSeconds(3600)))
+        assertTrue(repo.replaceConfirmationToken(id, secondHash, Instant.now().plusSeconds(3600)))
+        val confirmations = AssignmentConfirmationRepository(database)
+        assertNull(confirmations.find(firstHash))
+        assertEquals(ConfirmationStatus.PENDING, confirmations.find(secondHash)?.status)
+    }
+
+    @Test
+    fun `e-post kan bare markeres sendt én gang for aktiv lenke`() {
+        val helper = FamilyRepository(database).addHelper(familyA, "Bestemor", null)
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val tokenHash = "f".repeat(64)
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 5),
+            type = "PICKUP",
+            parentId = helper.id,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+        )
+        assertTrue(repo.replaceConfirmationToken(id, tokenHash, Instant.now().plusSeconds(3600)))
+
+        assertTrue(repo.hasActiveConfirmationToken(id, tokenHash))
+        assertTrue(repo.markConfirmationEmailSent(id, tokenHash))
+        assertEquals(false, repo.markConfirmationEmailSent(id, tokenHash))
+        assertEquals(true, repo.findById(id)?.confirmationEmailSent)
+
+        repo.clearConfirmationEmailSent(id, tokenHash)
+        assertEquals(false, repo.findById(id)?.confirmationEmailSent)
+    }
+
+    @Test
+    fun `familien kan registrere svar på ventende hjelpertildeling`() {
+        val helper = FamilyRepository(database).addHelper(familyA, "Bestemor", null)
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val id = repo.insert(
+            date = LocalDate.of(2026, 9, 6),
+            type = "PICKUP",
+            parentId = helper.id,
+            source = "MANUAL",
+            googleEventId = null,
+            confirmationStatus = ConfirmationStatus.PENDING,
+        )
+
+        assertEquals(ConfirmationAnswerResult.UPDATED, repo.answerPendingConfirmation(id, helper.id, ConfirmationStatus.ACCEPTED))
+        assertEquals(ConfirmationStatus.ACCEPTED, repo.findById(id)?.confirmationStatus)
+        assertEquals(ConfirmationAnswerResult.ALREADY_RECORDED, repo.answerPendingConfirmation(id, helper.id, ConfirmationStatus.ACCEPTED))
+        assertEquals(ConfirmationAnswerResult.CONFLICT, repo.answerPendingConfirmation(id, helper.id, ConfirmationStatus.DECLINED))
+
+        val otherFamilyRepository = FamilyScopedAssignmentRepository(familyB, database)
+        assertEquals(ConfirmationAnswerResult.CONFLICT, otherFamilyRepository.answerPendingConfirmation(id, helper.id, ConfirmationStatus.DECLINED))
     }
 }

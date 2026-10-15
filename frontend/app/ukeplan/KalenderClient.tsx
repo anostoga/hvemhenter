@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, Assignment, AssignmentType, Parent } from "@/lib/api";
 import { CellAssignments, WeekCalendar } from "@/app/components/WeekCalendar";
 import { Button } from "@/components/ui/button";
@@ -39,6 +39,7 @@ function weekdays(): string[] {
 }
 
 const ASSIGNMENT_TYPES: AssignmentType[] = ["DROPOFF", "PICKUP"];
+const CONFIRMATION_LINKS_STORAGE_KEY = "hvemhenter-confirmation-links";
 
 interface KalenderClientProps {
   initialParents: Parent[];
@@ -53,12 +54,54 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
   const [notice, setNotice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resendingAssignmentId, setResendingAssignmentId] = useState<string | null>(null);
+  const [confirmationLinks, setConfirmationLinks] = useState<Record<string, string>>({});
 
   const [loadingWeekIndex, setLoadingWeekIndex] = useState<number | null>(null);
 
   const [pendingResetWeek, setPendingResetWeek] = useState<string[] | null>(null);
 
   const days = useMemo(() => weekdays(), []);
+
+  useEffect(() => {
+    try {
+      const storedLinks = sessionStorage.getItem(CONFIRMATION_LINKS_STORAGE_KEY);
+      if (!storedLinks) return;
+      const parsed: unknown = JSON.parse(storedLinks);
+      if (
+        typeof parsed === "object" &&
+        parsed !== null &&
+        Object.values(parsed).every(
+          (path) => typeof path === "string" && /^\/bekreft\/[A-Za-z0-9_-]{43}$/.test(path),
+        )
+      ) {
+        setConfirmationLinks(parsed as Record<string, string>);
+      }
+    } catch (e) {
+      setError(`Kunne ikke hente lagrede delingslenker: ${String(e)}`);
+    }
+  }, []);
+
+  function clearConfirmationLinks(assignmentIds?: string[]) {
+    try {
+      if (!assignmentIds) {
+        sessionStorage.removeItem(CONFIRMATION_LINKS_STORAGE_KEY);
+        setConfirmationLinks({});
+        return;
+      }
+      const updatedLinks = { ...confirmationLinks };
+      for (const assignmentId of assignmentIds) {
+        delete updatedLinks[assignmentId];
+      }
+      setConfirmationLinks(updatedLinks);
+      if (Object.keys(updatedLinks).length === 0) {
+        sessionStorage.removeItem(CONFIRMATION_LINKS_STORAGE_KEY);
+      } else {
+        sessionStorage.setItem(CONFIRMATION_LINKS_STORAGE_KEY, JSON.stringify(updatedLinks));
+      }
+    } catch (e) {
+      setError(`Kunne ikke fjerne utgåtte delingslenker: ${String(e)}`);
+    }
+  }
 
   const assignmentsByDay = useMemo(() => {
     const map = new Map<string, CellAssignments>();
@@ -123,6 +166,13 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
           }
         }
       }
+      const changedAssignmentIds = weekDays.flatMap((date) =>
+        ASSIGNMENT_TYPES.flatMap((type) => {
+          const id = assignmentsByDay.get(date)?.[type]?.id;
+          return id ? [id] : [];
+        }),
+      );
+      clearConfirmationLinks(changedAssignmentIds);
       await refreshAssignments();
     } catch (e) {
       setError(String(e));
@@ -159,6 +209,8 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
 
         await api.assign({ date, type, parentId, source: "MANUAL" });
       }
+      const changedAssignmentId = assignmentsByDay.get(date)?.[type]?.id;
+      clearConfirmationLinks(changedAssignmentId ? [changedAssignmentId] : []);
       await refreshAssignments();
     } catch (e) {
       await refreshAssignments();
@@ -168,18 +220,82 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
     }
   }
 
-  async function resendConfirmation(assignmentId: string) {
+  async function resendConfirmation(assignmentId: string, token?: string) {
     setError(null);
     setNotice(null);
     setResendingAssignmentId(assignmentId);
     try {
-      await api.resendAssignmentConfirmation(assignmentId);
+      await api.resendAssignmentConfirmation(assignmentId, token);
       await refreshAssignments();
       setNotice("Bekreftelses-e-post sendt.");
+      return true;
+    } catch (e) {
+      setError(String(e));
+      return false;
+    } finally {
+      setResendingAssignmentId(null);
+    }
+  }
+
+  async function answerConfirmationOnBehalf(assignmentId: string, answer: "ACCEPTED" | "DECLINED") {
+    setError(null);
+    setNotice(null);
+    try {
+      await api.answerAssignmentOnBehalf(assignmentId, answer);
+      await refreshAssignments();
+      setNotice(`Svar registrert som ${answer === "ACCEPTED" ? "godtatt" : "avslått"}.`);
+      return true;
+    } catch (e) {
+      setError(String(e));
+      return false;
+    }
+  }
+
+  async function createConfirmationLink(assignmentId: string) {
+    setError(null);
+    setNotice(null);
+    setResendingAssignmentId(assignmentId);
+    try {
+      const path = await api.createAssignmentConfirmationLink(assignmentId);
+      const updatedLinks = { ...confirmationLinks, [assignmentId]: path };
+      setConfirmationLinks(updatedLinks);
+      try {
+        sessionStorage.setItem(CONFIRMATION_LINKS_STORAGE_KEY, JSON.stringify(updatedLinks));
+      } catch (e) {
+        setError(`Lenken er laget, men kunne ikke lagres for senere bruk: ${String(e)}`);
+      }
+      await refreshAssignments();
+      setNotice("Svarlenke opprettet.");
     } catch (e) {
       setError(String(e));
     } finally {
       setResendingAssignmentId(null);
+    }
+  }
+
+  async function shareConfirmationLink(path: string, title: string, text: string) {
+    const url = new URL(path, window.location.origin).toString();
+    try {
+      if (navigator.share) {
+        await navigator.share({ title, text, url });
+      } else {
+        await navigator.clipboard.writeText(`${text} ${url}`);
+        setNotice("Meldingen er kopiert. Lim den inn i Meldinger eller en annen app.");
+      }
+    } catch (e) {
+      if (e instanceof Error && (e.name === "AbortError" || e.name === "InvalidStateError")) return;
+      setError(`Kunne ikke dele lenken: ${String(e)}`);
+    }
+  }
+
+  async function copyConfirmationLink(path: string) {
+    const url = new URL(path, window.location.origin).toString();
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotice("Lenken er kopiert. Lim den inn i Meldinger eller en annen app.");
+      setError(null);
+    } catch (e) {
+      setError(`Kunne ikke kopiere lenken: ${String(e)}`);
     }
   }
 
@@ -212,6 +328,11 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
         onResetWeekPlan={requestResetWeek}
         onChangeAssignment={changeAssignment}
         onResendConfirmation={resendConfirmation}
+        onAnswerConfirmationOnBehalf={answerConfirmationOnBehalf}
+        onCreateConfirmationLink={createConfirmationLink}
+        onShareConfirmationLink={shareConfirmationLink}
+        onCopyConfirmationLink={copyConfirmationLink}
+        confirmationLinks={confirmationLinks}
         resendingAssignmentId={resendingAssignmentId}
       />
 

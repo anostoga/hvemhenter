@@ -22,6 +22,7 @@ export interface Assignment {
   source: AssignmentSource;
   googleEventId: string | null;
   confirmationStatus: ConfirmationStatus;
+  confirmationLinkIssued: boolean;
   confirmationEmailSent: boolean;
 }
 
@@ -186,8 +187,33 @@ export const api = {
       body: JSON.stringify({ answer }),
     }).then((r) => handle<{ status: ConfirmationStatus }>(r)),
 
-  resendAssignmentConfirmation: async (id: string) => {
+  answerAssignmentOnBehalf: (id: string, answer: "ACCEPTED" | "DECLINED") =>
+    fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(id)}/confirmation-answer`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ answer }),
+    }).then((r) => handle<{ status: ConfirmationStatus }>(r)),
+
+  resendAssignmentConfirmation: async (id: string, token?: string) => {
     const response = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(id)}/confirmation`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+    if (response.status === 401) {
+      window.location.href = "/";
+      throw new Error("ikke innlogget");
+    }
+    if (!response.ok) {
+      const body = await response.text();
+      throw new Error(`API-kall feilet (${response.status}): ${body}`);
+    }
+  },
+
+  createAssignmentConfirmationLink: async (id: string): Promise<string> => {
+    const response = await fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(id)}/confirmation-link`, {
       method: "POST",
       credentials: "include",
     });
@@ -199,6 +225,8 @@ export const api = {
       const body = await response.text();
       throw new Error(`API-kall feilet (${response.status}): ${body}`);
     }
+    const result = (await response.json()) as { path: string };
+    return result.path;
   },
 
   removeHelper: async (id: string) => {

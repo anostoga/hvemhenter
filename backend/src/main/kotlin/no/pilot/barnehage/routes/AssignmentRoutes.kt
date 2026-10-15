@@ -171,6 +171,7 @@ fun Route.assignmentRoutes(
                     source = request.source,
                     googleEventId = googleEventId,
                     confirmationStatus = confirmationStatus,
+                    confirmationLinkIssued = false,
                     confirmationEmailSent = false,
                 ),
             )
@@ -214,6 +215,7 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
     source = AssignmentSource.valueOf(source),
     googleEventId = googleEventId,
     confirmationStatus = confirmationStatus,
+    confirmationLinkIssued = confirmationLinkIssued,
     confirmationEmailSent = confirmationEmailSent,
 )
 

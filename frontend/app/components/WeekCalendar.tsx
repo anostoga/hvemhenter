@@ -1,6 +1,15 @@
+import { useState } from "react";
+import { CheckCircle2, XCircle } from "lucide-react";
 import { Assignment, AssignmentType, Parent } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { WeekBlockSkeleton } from "@/app/components/WeekCalendarSkeleton";
 
 const UNASSIGNED = "__unassigned__";
@@ -17,7 +26,12 @@ interface WeekCalendarProps {
   onGenerateWeekPlan: (weekDays: string[]) => void;
   onResetWeekPlan: (weekDays: string[]) => void;
   onChangeAssignment: (date: string, type: AssignmentType, parentId: string) => void;
-  onResendConfirmation: (assignmentId: string) => void;
+  onResendConfirmation: (assignmentId: string, token?: string) => Promise<boolean>;
+  onAnswerConfirmationOnBehalf: (assignmentId: string, answer: "ACCEPTED" | "DECLINED") => Promise<boolean>;
+  onCreateConfirmationLink: (assignmentId: string) => void;
+  onShareConfirmationLink: (path: string, title: string, text: string) => void;
+  onCopyConfirmationLink: (path: string) => void;
+  confirmationLinks: Record<string, string>;
   resendingAssignmentId?: string | null;
 }
 
@@ -47,10 +61,24 @@ export function WeekCalendar({
   onResetWeekPlan,
   onChangeAssignment,
   onResendConfirmation,
+  onAnswerConfirmationOnBehalf,
+  onCreateConfirmationLink,
+  onShareConfirmationLink,
+  onCopyConfirmationLink,
+  confirmationLinks,
   resendingAssignmentId = null,
 }: WeekCalendarProps) {
   const today = todayIso();
   const weeks = [days.slice(0, 5), days.slice(5, 10)];
+  const [shareAssignment, setShareAssignment] = useState<{
+    id: string;
+    date: string;
+    type: AssignmentType;
+    helperName: string;
+    email: string | null;
+    emailSent: boolean;
+  } | null>(null);
+  const [answeringOnBehalf, setAnsweringOnBehalf] = useState(false);
 
   function isPast(date: string): boolean {
     return date < today;
@@ -59,7 +87,7 @@ export function WeekCalendar({
   function renderSlot(date: string, type: AssignmentType) {
     const assignment = assignmentsByDay.get(date)?.[type];
     const assignedParent = parents.find((parent) => parent.id === assignment?.parentId);
-    const canSendHelperEmail = Boolean(assignedParent?.isHelper && assignedParent.email?.trim());
+    const canNotifyHelper = Boolean(assignedParent?.isHelper);
     const past = isPast(date);
 
     return (
@@ -85,33 +113,56 @@ export function WeekCalendar({
           </SelectContent>
         </Select>
         {}
-        <p className="m-0 min-h-[1em] text-xs text-muted-foreground">
+        <p className="m-0 min-h-[1em] text-xs">
           {assignment
             ? assignment.confirmationStatus !== "NOT_REQUIRED"
-              ? canSendHelperEmail
+              ? canNotifyHelper
                 ? assignment.confirmationStatus === "PENDING"
-                  ? assignment.confirmationEmailSent
-                    ? "Venter på svar"
-                    : "Ikke sendt"
-                  : assignment.confirmationStatus === "ACCEPTED"
-                    ? "Godtatt"
-                    : "Avslått"
+                  ? (
+                    <span className="text-muted-foreground">
+                      {assignment.confirmationLinkIssued || assignment.confirmationEmailSent
+                        ? "Venter på svar"
+                        : "Ikke sendt"}
+                    </span>
+                  )
+                  : assignment.confirmationStatus === "ACCEPTED" ? (
+                    <span className="inline-flex items-center gap-1 font-semibold text-green-700 dark:text-green-400">
+                      <CheckCircle2 className="size-4" aria-hidden="true" />
+                      Godtatt
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 font-semibold text-red-700 dark:text-red-400">
+                      <XCircle className="size-4" aria-hidden="true" />
+                      Avslått
+                    </span>
+                  )
                 : "\u00A0"
               : assignment.source === "AUTO"
                 ? "auto"
                 : "manuelt"
             : "\u00A0"}
         </p>
-        {canSendHelperEmail && assignment?.confirmationStatus === "PENDING" && !assignment.confirmationEmailSent && assignment.id && (
+        {canNotifyHelper && assignment?.confirmationStatus === "PENDING" && assignment.id && (
           <Button
             type="button"
-            variant="default"
+            variant="outline"
             size="default"
-            className="self-start"
-            disabled={loading || resendingAssignmentId === assignment.id}
-            onClick={() => onResendConfirmation(assignment.id!)}
+            disabled={resendingAssignmentId === assignment.id}
+            onClick={() => {
+                const hasStoredLink = Boolean(confirmationLinks[assignment.id!]);
+                const target = {
+                  id: assignment.id!,
+                  date,
+                  type,
+                  helperName: assignedParent?.name ?? "hjelper",
+                  email: assignedParent?.email?.trim() || null,
+                  emailSent: hasStoredLink && assignment.confirmationEmailSent,
+                };
+              setShareAssignment(target);
+              if (!confirmationLinks[target.id]) onCreateConfirmationLink(target.id);
+            }}
           >
-            {resendingAssignmentId === assignment.id ? "Sender …" : "Send e-post"}
+            {resendingAssignmentId === assignment.id ? "Forbereder …" : "Del med hjelper"}
           </Button>
         )}
       </div>
@@ -171,6 +222,117 @@ export function WeekCalendar({
           </div>
         );
       })}
+      <Dialog open={shareAssignment !== null} onOpenChange={(open) => !open && setShareAssignment(null)}>
+        <DialogContent aria-label="Del med hjelper">
+          <DialogHeader>
+            <DialogTitle>Del med hjelper</DialogTitle>
+            <DialogDescription>
+              Send lenken til {shareAssignment?.helperName} for å bekrefte{" "}
+              {shareAssignment ? TYPE_LABEL[shareAssignment.type].toLowerCase() : "oppgaven"}{" "}
+              {shareAssignment ? dayLabel(shareAssignment.date) : ""}.
+            </DialogDescription>
+          </DialogHeader>
+          {shareAssignment && (
+            <div className="flex flex-col gap-3">
+              {confirmationLinks[shareAssignment.id] ? (
+                <>
+                  <Button
+                    type="button"
+                    onClick={() =>
+                      onShareConfirmationLink(
+                        confirmationLinks[shareAssignment.id],
+                        "HvemHenter – bekreft oppgave",
+                        `Hei ${shareAssignment.helperName}! Kan du bekrefte ${TYPE_LABEL[shareAssignment.type].toLowerCase()} ${dayLabel(shareAssignment.date)}?`,
+                      )
+                    }
+                  >
+                    Del via Meldinger …
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => onCopyConfirmationLink(confirmationLinks[shareAssignment.id])}
+                  >
+                    Kopier svarlenke
+                  </Button>
+                  {shareAssignment.email && (
+                    shareAssignment.emailSent ? (
+                      <p className="m-0 text-sm text-muted-foreground" role="status">
+                        E-post er allerede sendt til hjelperen.
+                      </p>
+                    ) : (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        disabled={resendingAssignmentId === shareAssignment.id}
+                        onClick={async () => {
+                          const token = confirmationLinks[shareAssignment.id].split("/").at(-1);
+                          if (!token) return;
+                          const sent = await onResendConfirmation(shareAssignment.id, token);
+                          if (sent) {
+                            setShareAssignment((current) =>
+                              current?.id === shareAssignment.id ? { ...current, emailSent: true } : current,
+                            );
+                          }
+                        }}
+                      >
+                        {resendingAssignmentId === shareAssignment.id ? "Sender e-post …" : "Send også på e-post"}
+                      </Button>
+                    )
+                  )}
+                </>
+              ) : resendingAssignmentId === shareAssignment.id ? (
+                <p className="m-0 text-sm text-muted-foreground" role="status">
+                  Oppretter svarlenke …
+                </p>
+              ) : (
+                <p className="m-0 text-sm text-destructive" role="alert">
+                  Kunne ikke opprette svarlenken. Lukk vinduet og prøv igjen.
+                </p>
+              )}
+              <div className="border-t pt-3">
+                <p className="mb-2 mt-0 text-sm font-medium">Registrer svar på vegne av hjelperen</p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={answeringOnBehalf}
+                    onClick={async () => {
+                      setAnsweringOnBehalf(true);
+                      try {
+                        if (await onAnswerConfirmationOnBehalf(shareAssignment.id, "ACCEPTED")) {
+                          setShareAssignment(null);
+                        }
+                      } finally {
+                        setAnsweringOnBehalf(false);
+                      }
+                    }}
+                  >
+                    Godtatt
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={answeringOnBehalf}
+                    onClick={async () => {
+                      setAnsweringOnBehalf(true);
+                      try {
+                        if (await onAnswerConfirmationOnBehalf(shareAssignment.id, "DECLINED")) {
+                          setShareAssignment(null);
+                        }
+                      } finally {
+                        setAnsweringOnBehalf(false);
+                      }
+                    }}
+                  >
+                    Avslått
+                  </Button>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
