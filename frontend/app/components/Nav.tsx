@@ -56,31 +56,40 @@ export function Nav({ initialWho }: { initialWho: WhoAmI }) {
             </DropdownMenuContent>
           </DropdownMenu>
         ) : (
-          <Button variant="ghost" asChild>
-            <a className="no-underline" href={api.loginUrl()}>Logg inn</a>
-          </Button>
+          <div className="flex shrink-0 items-center gap-1.5">
+            <Link
+              href="/join"
+              aria-label="Bli med i en familie"
+              className="rounded-full border border-primary-foreground/50 px-3 py-2 text-sm font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary-foreground/10"
+            >
+              <span className="sm:hidden">Bli med</span>
+              <span className="hidden sm:inline">Bli med i familie</span>
+            </Link>
+            <a
+              className="rounded-full bg-primary-foreground px-3 py-2 text-sm font-semibold text-primary no-underline transition-colors hover:bg-primary-foreground/90"
+              href={api.loginUrl()}
+            >
+              Logg inn
+            </a>
+          </div>
         )}
       </div>
-      <span className="flex flex-wrap items-center gap-2 border-t border-primary-foreground/20 pt-3">
-        {who.loggedIn ? (
-          <>
-            <Link href="/" className={navLinkClassName("/")}>Forside</Link>
-            <Link href="/ukeplan" className={navLinkClassName("/ukeplan")}>Ukeplan</Link>
-            <Link href="/familie" className={navLinkClassName("/familie")}>Familie</Link>
-            {who.isAdmin && (
-              <Link href="/admin" className={navLinkClassName("/admin")}>Admin</Link>
-            )}
-          </>
-        ) : (
-          <>
-            <Link href="/join" className="no-underline">Bli med i en familie</Link>
-            {process.env.NODE_ENV !== "production" && (
-
-              <a className="no-underline" href="/auth/mock-login">Mock-innlogging (dev)</a>
-            )}
-          </>
-        )}
-      </span>
+      {(who.loggedIn || process.env.NODE_ENV !== "production") && (
+        <span className="flex flex-wrap items-center gap-2 border-t border-primary-foreground/20 pt-3">
+          {who.loggedIn ? (
+            <>
+              <Link href="/" className={navLinkClassName("/")}>Forside</Link>
+              <Link href="/ukeplan" className={navLinkClassName("/ukeplan")}>Ukeplan</Link>
+              <Link href="/familie" className={navLinkClassName("/familie")}>Familie</Link>
+              {who.isAdmin && (
+                <Link href="/admin" className={navLinkClassName("/admin")}>Admin</Link>
+              )}
+            </>
+          ) : (
+            <a className="no-underline" href="/auth/mock-login">Mock-innlogging (dev)</a>
+          )}
+        </span>
+      )}
     </nav>
   );
 }
