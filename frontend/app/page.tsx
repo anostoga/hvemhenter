@@ -77,16 +77,13 @@ export default async function LandingPage() {
         <div className="space-y-12 sm:space-y-16">
           <section className="grid overflow-hidden rounded-3xl border border-border bg-card shadow-sm sm:grid-cols-[1.05fr_0.95fr] sm:items-center">
             <div className="px-6 py-8 sm:px-9 sm:py-10">
-              <p className="mb-3 text-sm font-semibold uppercase tracking-[0.12em] text-primary">
-                En enklere barnehagehverdag
-              </p>
               <h1 className="mb-4 text-3xl font-bold leading-tight sm:text-4xl">
-                Hvem henter i dag?
-                <span className="block text-primary">En plan hele familien ser.</span>
+                Planlegg hvem som henter og leverer i barnehagen
+                <span className="mt-2 block text-primary">En felles ukeplan for hele familien.</span>
               </h1>
               <p className="mb-6 max-w-prose text-muted-foreground">
-                Samle familiens levering og henting på ett sted. HvemHenter hjelper dere med å
-                fordele dagene og holde ukeplanen oppdatert.
+                Hold oversikt over hvem som leverer og henter hver dag. Foreldre kan fordele
+                barnehagedagene, og dele planen med besteforeldre og andre hjelpere.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <a
@@ -139,7 +136,7 @@ export default async function LandingPage() {
                 Mer oversikt. Mindre styr.
               </h2>
               <p className="m-0 text-muted-foreground">
-                Dette hjelper familien med å få hente- og leveringskabalen til å gå opp.
+                HvemHenter samler familiens plan for levering og henting i barnehagen på ett sted.
               </p>
             </div>
             <div className="grid gap-4 sm:grid-cols-3">

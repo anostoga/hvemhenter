@@ -9,8 +9,9 @@ import Script from "next/script";
 const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata = {
-  title: "HvemHenter.no",
-  description: "Fordel levering og henting i barnehagen",
+  title: "HvemHenter – planlegg henting og levering i barnehagen",
+  description:
+    "Lag en felles ukeplan for hvem som leverer og henter i barnehagen. Koordiner med familie, besteforeldre og andre hjelpere med HvemHenter.",
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
