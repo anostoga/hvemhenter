@@ -1,4 +1,4 @@
-const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:8080";
+const BACKEND_URL = process.env.BACKEND_URL ?? "http://localhost:9090";
 
 const nextConfig = {
   reactStrictMode: true,

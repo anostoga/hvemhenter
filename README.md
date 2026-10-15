@@ -29,16 +29,12 @@ Når `backend/.env` og `frontend/.env.local` er sette opp (sjå avsnitta under),
 kan du starte Postgres, backend og frontend.
 
 ```bash
-cd backend
-docker-compose up/start
-./gradlew run
-
-cd..
-cd frontend
-npm run dev
+./scripts/dev.sh
 ```
 
-Appen migrerer databasen sjølv ved oppstart (`PostgresDatabase.connect()`)
+Dette startar PostgreSQL på `localhost:9876`, backend på `localhost:9090` og
+frontend på `localhost:3009`. Appen migrerer databasen sjølv ved oppstart
+(`PostgresDatabase.connect()`).
 
 ### Bekreftelse fra hjelpere
 
@@ -48,7 +44,7 @@ e-post sendes først når en forelder trykker «Send e-post» på den aktuelle
 hjelpertildelingen i ukeplanen. For å sende e-post må backend ha en
 Resend API-nøkkel (`RESEND_API_KEY`) og en verifisert avsenderadresse
 (`HELPER_EMAIL_FROM`). `FRONTEND_URL` må peke på appens offentlige adresse; lokalt
-brukes `http://localhost:3000`. Uten disse verdiene kan familier fortsatt tildele
+brukes `http://localhost:3009`. Uten disse verdiene kan familier fortsatt tildele
 oppgaver til hjelpere; e-postknappen viser en feil hvis utsending ikke er konfigurert
 eller feiler. Hjelperens e-postadresse
 legges inn under Familie. Avslag vises i ukeplanen, der familien kan tildele
@@ -71,7 +67,7 @@ MOCK_GOOGLE_AUTH=true
 
 og start backend + frontend som vanleg (`GOOGLE_CLIENT_ID`/`SECRET`/`REDIRECT_URI`
 kan stå tomme — dei blir uansett aldri brukte i mock-modus). Gå så til
-`http://localhost:8080/auth/mock-login` og fyll
+`http://localhost:9090/auth/mock-login` og fyll
 inn eit namn:
 
 - **Kode fylt ut** — hoppar over `/velkommen`-valet og blir med i ein

@@ -9,7 +9,7 @@ import no.pilot.barnehage.plugins.configureRouting
 import no.pilot.barnehage.plugins.configureSerialization
 
 fun main() {
-    embeddedServer(Netty, port = Env.get("PORT")?.toIntOrNull() ?: 8080, host = "0.0.0.0") {
+    embeddedServer(Netty, port = Env.get("PORT")?.toIntOrNull() ?: 9090, host = "0.0.0.0") {
         module()
     }.start(wait = true)
 }

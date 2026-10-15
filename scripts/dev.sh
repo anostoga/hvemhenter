@@ -24,8 +24,9 @@ mkdir -p "$LOG_DIR"
 BACKEND_LOG="$LOG_DIR/backend.log"
 FRONTEND_LOG="$LOG_DIR/frontend.log"
 
-BACKEND_PORT="${BACKEND_PORT:-8080}"
-FRONTEND_PORT="${FRONTEND_PORT:-3000}"
+POSTGRES_PORT="${POSTGRES_PORT:-9876}"
+BACKEND_PORT="${BACKEND_PORT:-9090}"
+FRONTEND_PORT="${FRONTEND_PORT:-3009}"
 
 # Noen miljøer har kun det eldre frittstående `docker-compose`-programmet,
 # andre kun det nyere `docker compose`-pluginet — støtt begge.
@@ -70,7 +71,7 @@ echo "==> Venter på at Postgres blir klar ..."
 # den host-mappede TCP-porten faktisk tar imot tilkoblinger — de to kan bli
 # klare på litt forskjellige tidspunkt rett etter containeren er opprettet.
 until (cd "$ROOT_DIR/backend" && "${COMPOSE[@]}" exec -T postgres pg_isready -U postgres) >/dev/null 2>&1 \
-  && (exec 3<>"/dev/tcp/localhost/5432") 2>/dev/null; do
+  && (exec 3<>"/dev/tcp/localhost/$POSTGRES_PORT") 2>/dev/null; do
   exec 3<&- 2>/dev/null || true
   sleep 1
 done
@@ -78,7 +79,12 @@ exec 3<&- 2>/dev/null || true
 echo "    Postgres er klar."
 
 echo "==> Starter backend (PORT=$BACKEND_PORT) — logg: $BACKEND_LOG"
-(cd "$ROOT_DIR/backend" && PORT="$BACKEND_PORT" ./gradlew run --console=plain) > "$BACKEND_LOG" 2>&1 &
+(cd "$ROOT_DIR/backend" && \
+  DATABASE_URL="${DATABASE_URL:-jdbc:postgresql://localhost:$POSTGRES_PORT/barnehage}" \
+  FRONTEND_URL="http://localhost:$FRONTEND_PORT" \
+  GOOGLE_REDIRECT_URI="http://localhost:$FRONTEND_PORT/auth/google/callback" \
+  PORT="$BACKEND_PORT" \
+  ./gradlew run --console=plain) > "$BACKEND_LOG" 2>&1 &
 BACKEND_PID=$!
 
 echo "==> Venter på at backend svarer på http://localhost:$BACKEND_PORT/auth/whoami ..."

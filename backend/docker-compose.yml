@@ -6,7 +6,7 @@ services:
       POSTGRES_PASSWORD: localdev
       POSTGRES_DB: barnehage
     ports:
-      - "9876:5432"
+      - "${POSTGRES_PORT:-9876}:5432"
     volumes:
       - bhg-postgres-data:/var/lib/postgresql/data
 

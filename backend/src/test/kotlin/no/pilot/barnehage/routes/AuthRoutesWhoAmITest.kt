@@ -32,7 +32,7 @@ import kotlin.test.assertTrue
 
 class AuthRoutesWhoAmITest {
     private val database = Database.connect(
-        url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:5432/barnehage",
+        url = System.getenv("DATABASE_URL") ?: "jdbc:postgresql://localhost:9876/barnehage",
         user = System.getenv("DATABASE_USER") ?: "postgres",
         password = System.getenv("DATABASE_PASSWORD") ?: "localdev",
         driver = "org.postgresql.Driver",

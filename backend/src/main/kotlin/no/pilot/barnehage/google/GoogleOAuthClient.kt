@@ -55,7 +55,7 @@ data class GoogleOAuthConfig(
             return GoogleOAuthConfig(
                 clientId = Env.get("GOOGLE_CLIENT_ID") ?: if (mockAuth) "mock-client-id" else error("GOOGLE_CLIENT_ID mangler"),
                 clientSecret = Env.get("GOOGLE_CLIENT_SECRET") ?: if (mockAuth) "mock-client-secret" else error("GOOGLE_CLIENT_SECRET mangler"),
-                redirectUri = Env.get("GOOGLE_REDIRECT_URI") ?: if (mockAuth) "http://localhost:3000/auth/google/callback" else error("GOOGLE_REDIRECT_URI mangler"),
+                redirectUri = Env.get("GOOGLE_REDIRECT_URI") ?: if (mockAuth) "http://localhost:3009/auth/google/callback" else error("GOOGLE_REDIRECT_URI mangler"),
             )
         }
     }

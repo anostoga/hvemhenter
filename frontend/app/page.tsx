@@ -93,7 +93,7 @@ export default async function LandingPage() {
                   href={api.loginUrl()}
                   className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 font-semibold text-primary-foreground no-underline transition-colors hover:bg-primary/90"
                 >
-                  Kom i gang med Google
+                  Kom i gang!
                   <ArrowRight aria-hidden="true" className="size-4" />
                 </a>
                 <Link
