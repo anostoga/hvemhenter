@@ -61,7 +61,7 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         confirmationTokenHash: String? = null,
         confirmationTokenExpiresAt: Instant? = null,
     ): UUID = transaction(database) {
-        AssignmentsTable.insert {
+        val id = AssignmentsTable.insert {
             it[AssignmentsTable.familyId] = this@FamilyScopedAssignmentRepository.familyId
             it[AssignmentsTable.date] = date
             it[AssignmentsTable.type] = type
@@ -73,6 +73,8 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             it[AssignmentsTable.confirmationTokenExpiresAt] = confirmationTokenExpiresAt
             it[createdAt] = Instant.now()
         }[AssignmentsTable.id]
+        recordCalendarUpdate(familyId)
+        id
     }
 
     fun findByDateAndType(date: LocalDate, type: String): FamilyAssignment? = transaction(database) {
@@ -89,7 +91,9 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         googleEventId: String?,
         confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
     ) = transaction(database) {
-        AssignmentsTable.update({ AssignmentsTable.id eq id }) {
+        val updated = AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.id eq id)
+        }) {
             it[AssignmentsTable.parentId] = parentId
             it[AssignmentsTable.assignmentSource] = source
             it[AssignmentsTable.googleEventId] = googleEventId
@@ -99,6 +103,8 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             it[AssignmentsTable.confirmationLinkIssued] = false
             it[AssignmentsTable.confirmationEmailSent] = false
         }
+        if (updated > 0) recordCalendarUpdate(familyId)
+        updated
     }
 
     fun updateConfirmationToken(id: UUID, tokenHash: String, expiresAt: Instant): Boolean = transaction(database) {
@@ -148,6 +154,7 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
             it[AssignmentsTable.confirmationStatus] = answer.name
         }
         if (updated > 0) {
+            recordCalendarUpdate(familyId)
             ConfirmationAnswerResult.UPDATED
         } else {
             val currentStatus = AssignmentsTable.selectAll()
@@ -220,7 +227,10 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
     }
 
     fun delete(id: UUID) = transaction(database) {
-        AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.id eq id) } }
+        val scopedFamilyId = familyId
+        val deleted = AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { (AssignmentsTable.familyId eq scopedFamilyId) and (AssignmentsTable.id eq id) } }
+        if (deleted > 0) recordCalendarUpdate(familyId)
+        deleted
     }
 
     fun hasAssignmentsForParent(parentId: UUID): Boolean = transaction(database) {
@@ -240,7 +250,9 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
 
     fun deleteAllForThisFamily() = transaction(database) {
         val id = familyId
-        AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { AssignmentsTable.familyId eq id } }
+        val deleted = AssignmentsTable.deleteWhere { org.jetbrains.exposed.sql.Op.build { AssignmentsTable.familyId eq id } }
+        if (deleted > 0) recordCalendarUpdate(familyId)
+        deleted
     }
 
     private fun org.jetbrains.exposed.sql.ResultRow.toFamilyAssignment() = FamilyAssignment(

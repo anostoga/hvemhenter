@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api, Assignment, AssignmentType, Parent } from "@/lib/api";
 import { CellAssignments, WeekCalendar } from "@/app/components/WeekCalendar";
+import { CalendarViewActivity } from "@/app/components/CalendarViewActivity";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -301,6 +302,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
 
   return (
     <>
+      <CalendarViewActivity />
       {error && <p className="text-destructive">{error}</p>}
       {notice && <p className="text-sm text-muted-foreground" role="status">{notice}</p>}
       {declinedAssignments.length > 0 && (

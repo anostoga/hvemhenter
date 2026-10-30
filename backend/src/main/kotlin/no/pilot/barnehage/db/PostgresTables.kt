@@ -11,6 +11,8 @@ object FamiliesTable : Table("families") {
     val sharedCalendarId = text("shared_calendar_id")
     val inviteCode = text("invite_code").nullable()
     val createdAt = timestamp("created_at").defaultExpression(CurrentTimestamp)
+    val lastCalendarViewedAt = timestamp("last_calendar_viewed_at").nullable()
+    val lastCalendarUpdatedAt = timestamp("last_calendar_updated_at").nullable()
     override val primaryKey = PrimaryKey(id)
 }
 

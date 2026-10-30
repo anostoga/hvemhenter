@@ -12,6 +12,7 @@ import no.pilot.barnehage.crypto.TokenCipher
 import no.pilot.barnehage.db.FamilyRepository
 import no.pilot.barnehage.db.TokenRepository
 import no.pilot.barnehage.db.AdminRepository
+import no.pilot.barnehage.db.FamilyActivityRepository
 import no.pilot.barnehage.db.OnboardingRepository
 import no.pilot.barnehage.domain.AssignmentService
 import no.pilot.barnehage.google.AccessTokenProvider
@@ -25,6 +26,7 @@ import no.pilot.barnehage.routes.adminRoutes
 import no.pilot.barnehage.routes.authRoutes
 import no.pilot.barnehage.routes.calendarRoutes
 import no.pilot.barnehage.routes.familyRoutes
+import no.pilot.barnehage.routes.familyActivityRoutes
 import no.pilot.barnehage.routes.joinRoutes
 import no.pilot.barnehage.routes.onboardingRoutes
 import no.pilot.barnehage.routes.profileRoutes
@@ -71,6 +73,7 @@ fun Application.configureRouting(database: Database) {
         onboardingRoutes(onboardingRepository, familyRepository, tokenRepository)
         joinRoutes(oauthClient, stateSigner, familyRepository)
         familyRoutes(familyRepository, database)
+        familyActivityRoutes(familyRepository, FamilyActivityRepository(database))
         calendarRoutes(familyRepository, accessTokenProvider, calendarService)
         profileRoutes(familyRepository)
         assignmentRoutes(familyRepository, assignmentService, calendarService, accessTokenProvider, tokenRepository, database)

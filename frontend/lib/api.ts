@@ -76,6 +76,19 @@ export interface AdminStats {
   familyCount: number;
   userCount: number;
   helperCount: number;
+  activeFamiliesLast24Hours: number;
+  activeFamiliesLast7Days: number;
+  activeFamiliesLast30Days: number;
+  updatedFamiliesLast7Days: number;
+  updatedFamiliesLast30Days: number;
+  families: FamilyActivity[];
+}
+
+export interface FamilyActivity {
+  id: string;
+  lastCalendarViewedAt: string | null;
+  lastCalendarUpdatedAt: string | null;
+  lastActiveAt: string | null;
 }
 
 export interface Profile {
@@ -127,6 +140,18 @@ export const api = {
 
   getAssignments: () =>
     fetch(`${API_BASE_URL}/api/assignments`, { credentials: "include" }).then((r) => handle<Assignment[]>(r)),
+
+  recordCalendarView: async () => {
+    const response = await fetch(`${API_BASE_URL}/api/family/calendar-views`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: "{}",
+    });
+    if (!response.ok) {
+      throw new Error(`Kunne ikke registrere kalendervisning (${response.status})`);
+    }
+  },
 
   getSuggestion: (date: string, type: AssignmentType) =>
     fetch(`${API_BASE_URL}/api/suggest?date=${date}&type=${type}`, { credentials: "include" }).then((r) =>

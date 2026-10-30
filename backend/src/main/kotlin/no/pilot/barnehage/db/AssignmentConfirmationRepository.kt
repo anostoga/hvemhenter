@@ -49,6 +49,7 @@ class AssignmentConfirmationRepository(private val database: Database) {
             it[AssignmentsTable.confirmationStatus] = answer.name
         }
         if (updated > 0) {
+            recordCalendarUpdate(assignment[AssignmentsTable.familyId])
             ConfirmationAnswerResult.UPDATED
         } else {
             val latest = AssignmentsTable.selectAll()

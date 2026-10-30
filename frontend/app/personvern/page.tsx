@@ -32,6 +32,11 @@ export default function PersonvernPage() {
             Krypterte Google OAuth-tilgangs- og fornyelsestokener, slik at appen kan lese ledig tid i og
             opprette hendelser i kalenderen din på dine vegne.
           </li>
+          <li>
+            To aktivitetstidspunkter per familie: siste visning av ukeplanen og siste endring av planen,
+            inkludert svar på hjelpertildelinger. Visninger registreres høyst én gang per 15 minutter.
+            Vi lagrer ingen handlingslogg eller opplysning om hvem som utførte handlingen.
+          </li>
         </ul>
         <p>
           Familien kan i tillegg registrere &quot;hjelpere&quot; (f.eks. besteforeldre) med navn, valgfri avatar
@@ -39,12 +44,16 @@ export default function PersonvernPage() {
           lenke der hjelperen kan godta eller avslå oppgaven. Hjelpere har ikke Google-konto eller
           kalendertilgang knyttet til seg i appen.
         </p>
+        <p>
+          Aktivitetstidspunktene brukes til bruksstatistikk og er bare tilgjengelige for administratorer.
+          De overskrives ved ny aktivitet og slettes når familien slettes.
+        </p>
       </section>
 
       <section>
         <h2>Hvorfor vi lagrer dette</h2>
         <p>
-          Opplysningene brukes utelukkende til å drifte appens kjernefunksjon: vise hvem som henter/leverer når,
+          Opplysningene brukes til å drifte appens kjernefunksjon: vise hvem som henter/leverer når,
           foreslå en rettferdig fordeling basert på historikk og ledig tid, og synkronisere dette med familiens
           delte Google-kalender. Hjelperens e-post brukes kun til oppgavevarsler og svarlenker. Behandlingen er
           basert på samtykke — du logger aktivt inn med Google og gir derved appen tilgang til de kalender-scopene

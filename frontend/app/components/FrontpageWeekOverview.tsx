@@ -6,6 +6,7 @@ import type { Assignment, Parent } from "@/lib/api";
 import type { CellAssignments } from "@/app/components/WeekCalendar";
 import { frontpageWeek } from "@/lib/frontpage-week";
 import { WeekOverview, WeekOverviewSkeleton } from "@/app/components/WeekOverview";
+import { CalendarViewActivity } from "@/app/components/CalendarViewActivity";
 
 export function FrontpageWeekOverview({ parents, assignments }: {
   parents: Parent[];
@@ -40,6 +41,7 @@ export function FrontpageWeekOverview({ parents, assignments }: {
 
   return (
     <>
+      {week && <CalendarViewActivity />}
       <h2>{week ? (week.isNextWeek ? "Neste uke" : "Denne uken") : "Ukeoversikt"}</h2>
       <p className="mb-2 sm:hidden">
         <Link href="/ukeplan">Gå til ukeplan for å endre</Link>
