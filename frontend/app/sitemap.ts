@@ -13,7 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${baseUrl}/om`,
       changeFrequency: "monthly",
       priority: 0.7,
-    },copi
+    },
     {
       url: `${baseUrl}/personvern`,
       changeFrequency: "yearly",
