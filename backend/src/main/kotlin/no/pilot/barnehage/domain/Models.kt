@@ -45,6 +45,7 @@ data class Assignment(
     val confirmationStatus: ConfirmationStatus = ConfirmationStatus.NOT_REQUIRED,
     val confirmationLinkIssued: Boolean = false,
     val confirmationEmailSent: Boolean = false,
+    val note: String? = null,
 )
 
 data class BusyPeriod(val startEpochMillis: Long, val endEpochMillis: Long)

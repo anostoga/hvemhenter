@@ -60,6 +60,39 @@ class FamilyScopedAssignmentRepositoryTest {
     }
 
     @Test
+    fun `notat gjelder bare valgt oppgave og bevares ved ny tildeling`() {
+        val repo = FamilyScopedAssignmentRepository(familyA, database)
+        val date = LocalDate.of(2026, 11, 9)
+        val dropoffId = repo.insert(date, "DROPOFF", parentA, "MANUAL", "event-id", ConfirmationStatus.PENDING)
+        val pickupId = repo.insert(date, "PICKUP", parentA, "AUTO", null)
+        val tokenHash = "f".repeat(64)
+        repo.updateConfirmationToken(dropoffId, tokenHash, Instant.now().plusSeconds(3600))
+        repo.markConfirmationEmailSent(dropoffId, tokenHash)
+        val before = repo.findById(dropoffId)!!
+
+        assertTrue(repo.updateNote(dropoffId, "Ta med flere bleier"))
+        assertEquals(before.copy(note = "Ta med flere bleier"), repo.findById(dropoffId))
+        assertNull(repo.findById(pickupId)?.note)
+        assertTrue(repo.hasActiveConfirmationToken(dropoffId, tokenHash))
+        repo.update(dropoffId, parentA, "MANUAL", null)
+        assertEquals("Ta med flere bleier", repo.findById(dropoffId)?.note)
+        assertTrue(repo.updateNote(dropoffId, null))
+        assertNull(repo.findById(dropoffId)?.note)
+    }
+
+    @Test
+    fun `notater kan ikke endres paa tvers av familier`() {
+        val repoA = FamilyScopedAssignmentRepository(familyA, database)
+        val repoB = FamilyScopedAssignmentRepository(familyB, database)
+        val id = repoB.insert(LocalDate.of(2026, 11, 9), "PICKUP", parentB, "MANUAL", null)
+        repoB.updateNote(id, "Husk bleier")
+
+        assertEquals(false, repoA.updateNote(id, "Endret"))
+        assertEquals(false, repoA.updateNote(UUID.randomUUID(), "Ukjent"))
+        assertEquals("Husk bleier", repoB.findById(id)?.note)
+    }
+
+    @Test
     fun `familie A kan ikke lese familie B sine tildelinger`() {
         val repoB = FamilyScopedAssignmentRepository(familyB, database)
         repoB.insert(LocalDate.of(2026, 8, 27), "DROPOFF", parentB, "MANUAL", null)

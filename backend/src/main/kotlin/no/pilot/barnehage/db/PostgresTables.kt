@@ -83,6 +83,7 @@ object AssignmentsTable : Table("assignments") {
     val parentId = uuid("parent_id").references(ParentsTable.id, onDelete = org.jetbrains.exposed.sql.ReferenceOption.CASCADE)
     val assignmentSource = text("source")
     val googleEventId = text("google_event_id").nullable()
+    val note = text("note").nullable()
     val confirmationStatus = text("confirmation_status").default("NOT_REQUIRED")
     val confirmationLinkIssued = bool("confirmation_link_issued").default(false)
     val confirmationEmailSent = bool("confirmation_email_sent").default(false)

@@ -8,6 +8,7 @@ import {
   DialogContent,
   DialogDescription,
   DialogHeader,
+  DialogFooter,
   DialogTitle,
 } from "@/components/ui/dialog";
 import { WeekBlockSkeleton } from "@/app/components/WeekCalendarSkeleton";
@@ -26,6 +27,7 @@ interface WeekCalendarProps {
   onGenerateWeekPlan: (weekDays: string[]) => void;
   onResetWeekPlan: (weekDays: string[]) => void;
   onChangeAssignment: (date: string, type: AssignmentType, parentId: string) => void;
+  onSaveNote: (assignmentId: string, note: string) => Promise<boolean>;
   onResendConfirmation: (assignmentId: string, token?: string) => Promise<boolean>;
   onAnswerConfirmationOnBehalf: (assignmentId: string, answer: "ACCEPTED" | "DECLINED") => Promise<boolean>;
   onCreateConfirmationLink: (assignmentId: string) => void;
@@ -60,6 +62,7 @@ export function WeekCalendar({
   onGenerateWeekPlan,
   onResetWeekPlan,
   onChangeAssignment,
+  onSaveNote,
   onResendConfirmation,
   onAnswerConfirmationOnBehalf,
   onCreateConfirmationLink,
@@ -79,6 +82,25 @@ export function WeekCalendar({
     emailSent: boolean;
   } | null>(null);
   const [answeringOnBehalf, setAnsweringOnBehalf] = useState(false);
+  const [noteAssignment, setNoteAssignment] = useState<Assignment | null>(null);
+  const [note, setNote] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  const [noteError, setNoteError] = useState<string | null>(null);
+
+  async function saveNote() {
+    if (!noteAssignment?.id) return;
+    setSavingNote(true);
+    setNoteError(null);
+    try {
+      if (await onSaveNote(noteAssignment.id, note)) {
+        setNoteAssignment(null);
+      } else {
+        setNoteError("Kunne ikke lagre notatet. Prøv igjen.");
+      }
+    } finally {
+      setSavingNote(false);
+    }
+  }
 
   function isPast(date: string): boolean {
     return date < today;
@@ -142,6 +164,24 @@ export function WeekCalendar({
                 : "manuelt"
             : "\u00A0"}
         </p>
+        {assignment?.note && (
+          <p className="m-0 whitespace-pre-wrap break-words text-xs text-muted-foreground">{assignment.note}</p>
+        )}
+        {assignment?.id && !past && (
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            aria-label={`${assignment.note ? "Endre" : "Legg til"} notat for ${TYPE_LABEL[type].toLowerCase()} ${dayLabel(date)}`}
+            onClick={() => {
+              setNoteAssignment(assignment);
+              setNote(assignment.note ?? "");
+              setNoteError(null);
+            }}
+          >
+            {assignment.note ? "Endre notat" : "Legg til notat"}
+          </Button>
+        )}
         {canNotifyHelper && assignment?.confirmationStatus === "PENDING" && assignment.id && (
           <Button
             type="button"
@@ -222,6 +262,34 @@ export function WeekCalendar({
           </div>
         );
       })}
+      <Dialog open={noteAssignment !== null} onOpenChange={(open) => !open && !savingNote && setNoteAssignment(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Notat for {noteAssignment ? TYPE_LABEL[noteAssignment.type].toLowerCase() : "oppgaven"}</DialogTitle>
+            <DialogDescription>
+              {noteAssignment ? dayLabel(noteAssignment.date) : ""}. Notatet er synlig for familien. Tøm feltet for å fjerne notatet.
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={(event) => { event.preventDefault(); void saveNote(); }} className="flex flex-col gap-3">
+            <label htmlFor="assignment-note" className="text-sm font-medium">Notat</label>
+            <textarea
+              id="assignment-note"
+              value={note}
+              onChange={(event) => setNote(event.target.value)}
+              placeholder="F.eks. Ta med flere bleier"
+              maxLength={1000}
+              rows={4}
+              disabled={savingNote}
+              className="w-full min-w-0 rounded-lg border border-input bg-background px-3 py-2 text-base outline-none focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            {noteError && <p className="m-0 text-sm text-destructive" role="alert">{noteError}</p>}
+            <DialogFooter>
+              <Button type="button" variant="outline" disabled={savingNote} onClick={() => setNoteAssignment(null)}>Avbryt</Button>
+              <Button type="submit" disabled={savingNote || loading}>{savingNote ? "Lagrer …" : "Lagre notat"}</Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
       <Dialog open={shareAssignment !== null} onOpenChange={(open) => !open && setShareAssignment(null)}>
         <DialogContent aria-label="Del med hjelper">
           <DialogHeader>

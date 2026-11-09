@@ -22,6 +22,7 @@ data class FamilyAssignment(
     val confirmationStatus: ConfirmationStatus,
     val confirmationLinkIssued: Boolean,
     val confirmationEmailSent: Boolean,
+    val note: String? = null,
 )
 
 data class AssignmentConfirmation(
@@ -105,6 +106,16 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         }
         if (updated > 0) recordCalendarUpdate(familyId)
         updated
+    }
+
+    fun updateNote(id: UUID, note: String?): Boolean = transaction(database) {
+        val updated = AssignmentsTable.update({
+            (AssignmentsTable.familyId eq familyId) and (AssignmentsTable.id eq id)
+        }) {
+            it[AssignmentsTable.note] = note
+        }
+        if (updated > 0) recordCalendarUpdate(familyId)
+        updated > 0
     }
 
     fun updateConfirmationToken(id: UUID, tokenHash: String, expiresAt: Instant): Boolean = transaction(database) {
@@ -265,5 +276,6 @@ class FamilyScopedAssignmentRepository(private val familyId: UUID, private val d
         confirmationStatus = ConfirmationStatus.valueOf(this[AssignmentsTable.confirmationStatus]),
         confirmationLinkIssued = this[AssignmentsTable.confirmationLinkIssued],
         confirmationEmailSent = this[AssignmentsTable.confirmationEmailSent],
+        note = this[AssignmentsTable.note],
     )
 }

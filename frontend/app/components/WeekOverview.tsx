@@ -47,6 +47,11 @@ export function WeekOverview({ days, assignmentsByDay, parents }: WeekOverviewPr
               <div className="flex flex-col gap-1 rounded bg-muted p-2 text-sm" key={type}>
                 <p className="m-0 font-semibold text-foreground">{TYPE_LABEL[type]}</p>
                 <p className="m-0 truncate">{parentLabel(assignmentsByDay.get(date)?.[type], parents)}</p>
+                {assignmentsByDay.get(date)?.[type]?.note && (
+                  <p className="m-0 whitespace-pre-wrap break-words text-xs text-muted-foreground">
+                    {assignmentsByDay.get(date)?.[type]?.note}
+                  </p>
+                )}
               </div>
             ))}
           </div>

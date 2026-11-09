@@ -24,6 +24,7 @@ export interface Assignment {
   confirmationStatus: ConfirmationStatus;
   confirmationLinkIssued: boolean;
   confirmationEmailSent: boolean;
+  note: string | null;
 }
 
 export interface AssignmentConfirmation {
@@ -164,6 +165,14 @@ export const api = {
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(input),
+    }).then((r) => handle<Assignment>(r)),
+
+  updateAssignmentNote: (id: string, note: string | null) =>
+    fetch(`${API_BASE_URL}/api/assignments/${encodeURIComponent(id)}/note`, {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note }),
     }).then((r) => handle<Assignment>(r)),
 
   deleteAssignment: async (id: string) => {

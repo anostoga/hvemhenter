@@ -221,6 +221,23 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
     }
   }
 
+  async function saveNote(assignmentId: string, note: string): Promise<boolean> {
+    setError(null);
+    setNotice(null);
+    setLoading(true);
+    try {
+      const updated = await api.updateAssignmentNote(assignmentId, note);
+      setAssignments((current) => current.map((assignment) => assignment.id === updated.id ? updated : assignment));
+      setNotice(updated.note ? "Notatet er lagret." : "Notatet er fjernet.");
+      return true;
+    } catch (e) {
+      setError(String(e));
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   async function resendConfirmation(assignmentId: string, token?: string) {
     setError(null);
     setNotice(null);
@@ -329,6 +346,7 @@ export default function KalenderClient({ initialParents, initialAssignments }: K
         onGenerateWeekPlan={generateWeekPlan}
         onResetWeekPlan={requestResetWeek}
         onChangeAssignment={changeAssignment}
+        onSaveNote={saveNote}
         onResendConfirmation={resendConfirmation}
         onAnswerConfirmationOnBehalf={answerConfirmationOnBehalf}
         onCreateConfirmationLink={createConfirmationLink}

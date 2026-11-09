@@ -9,6 +9,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.delete
 import io.ktor.server.routing.get
 import io.ktor.server.routing.post
+import io.ktor.server.routing.put
 import kotlinx.serialization.Serializable
 import no.pilot.barnehage.auth.userSession
 import no.pilot.barnehage.auth.SESSION_AUTH_NAME
@@ -49,6 +50,9 @@ internal fun defaultWindow(type: AssignmentType): Pair<String, String> = when (t
     AssignmentType.DROPOFF -> "07:30" to "09:15"
     AssignmentType.PICKUP -> "15:00" to "17:00"
 }
+
+@Serializable
+data class AssignmentNoteRequest(val note: String?)
 
 fun Route.assignmentRoutes(
     familyRepository: FamilyRepository,
@@ -173,8 +177,27 @@ fun Route.assignmentRoutes(
                     confirmationStatus = confirmationStatus,
                     confirmationLinkIssued = false,
                     confirmationEmailSent = false,
+                    note = existing?.note,
                 ),
             )
+        }
+
+        put("/api/assignments/{id}/note") {
+            val session = call.userSession()!!
+            val assignmentId = call.parameters["id"]?.let { runCatching { UUID.fromString(it) }.getOrNull() }
+                ?: return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("ugyldig id"))
+            val request = call.receive<AssignmentNoteRequest>()
+            if ((request.note?.length ?: 0) > 1000) {
+                return@put call.respond(HttpStatusCode.BadRequest, ErrorResponse("Notatet kan ha maks 1000 tegn"))
+            }
+            val repo = FamilyScopedAssignmentRepository(UUID.fromString(session.familyId), database)
+            val note = request.note?.trim()?.takeIf { it.isNotEmpty() }
+            if (!repo.updateNote(assignmentId, note)) {
+                return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
+            }
+            val assignment = repo.findById(assignmentId)
+                ?: return@put call.respond(HttpStatusCode.NotFound, ErrorResponse("tildeling ikke funnet"))
+            call.respond(assignment.toApiAssignment())
         }
 
         delete("/api/assignments/{id}") {
@@ -217,6 +240,7 @@ private fun no.pilot.barnehage.db.FamilyAssignment.toApiAssignment() = Assignmen
     confirmationStatus = confirmationStatus,
     confirmationLinkIssued = confirmationLinkIssued,
     confirmationEmailSent = confirmationEmailSent,
+    note = note,
 )
 
 private fun effectiveParents(familyRepository: FamilyRepository, tokenRepository: TokenRepository, familyId: UUID): List<Parent> =
